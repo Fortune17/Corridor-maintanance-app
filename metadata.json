@@ -1,0 +1,6 @@
+{
+  "name": "Corridor Hill Maintenance",
+  "description": "Mobile-first maintenance management system for Corridor Hill Student Residence. Submit, track, and resolve residence repair requests.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
