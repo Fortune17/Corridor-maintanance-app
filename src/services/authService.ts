@@ -69,7 +69,7 @@ class AuthService {
 
   // --- SUPABASE CONFIGURATION PROXY ---
 
-  public getSupabaseStatus(): { isConnected: boolean; url: string } {
+  public getSupabaseStatus(): { isConnected: boolean; url: string; hasKey: boolean } {
     return supabaseService.getStatus();
   }
 

@@ -152,19 +152,21 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
 
-            <button
-              onClick={onOpenSupabaseModal}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
-                isSupabaseLive
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-              }`}
-              title={isSupabaseLive ? 'Connected to live Supabase PostgreSQL project' : 'Open Supabase Database & Schema panel'}
-            >
-              <Database className={`w-3.5 h-3.5 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
-              <span className="whitespace-nowrap">{isSupabaseLive ? 'Supabase Live' : 'Supabase DB'}</span>
-              <span className={`w-2 h-2 rounded-full shrink-0 ${isSupabaseLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-            </button>
+            {isStaff && (
+              <button
+                onClick={onOpenSupabaseModal}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+                  isSupabaseLive
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                }`}
+                title={isSupabaseLive ? 'Connected to live Supabase PostgreSQL project' : 'Open Supabase Database & Schema panel'}
+              >
+                <Database className={`w-3.5 h-3.5 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
+                <span className="whitespace-nowrap">{isSupabaseLive ? 'Supabase Live' : 'Supabase DB'}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${isSupabaseLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              </button>
+            )}
           </nav>
 
           {/* Zone 3: Actions, Notifications & Account */}
@@ -325,27 +327,29 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
 
-              <button
-                onClick={() => {
-                  onOpenSupabaseModal();
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border ${
-                  isSupabaseLive
-                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Database className={`w-4 h-4 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Supabase Database & Tables</span>
-                </div>
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                  isSupabaseLive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {isSupabaseLive ? 'Connected' : 'Local'}
-                </span>
-              </button>
+              {isStaff && (
+                <button
+                  onClick={() => {
+                    onOpenSupabaseModal();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border ${
+                    isSupabaseLive
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Database className={`w-4 h-4 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
+                    <span>Supabase Database & Tables</span>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    isSupabaseLive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {isSupabaseLive ? 'Connected' : 'Local'}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         )}

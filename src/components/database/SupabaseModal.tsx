@@ -501,8 +501,9 @@ create policy "Allow update notifications" on public.notifications for update us
                     type="password"
                     value={supabaseKeyInput}
                     onChange={(e) => setSupabaseKeyInput(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-sky-600 focus:outline-none"
+                    placeholder={authService.getSupabaseStatus().hasKey ? "•••••••••••••••••••••••• (configured)" : "Enter anon public API key"}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-sky-600 focus:outline-hidden"
+                    autoComplete="off"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Found in your Supabase Dashboard: <strong>Project Settings &rarr; API &rarr; Project API keys (<code className="text-slate-600">anon public</code>)</strong>
@@ -521,7 +522,7 @@ create policy "Allow update notifications" on public.notifications for update us
                     </button>
                   ) : (
                     <span className="text-xs text-slate-400 italic">
-                      Tip: You can also set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.example
+                      Configure via environment variables or set credentials securely above.
                     </span>
                   )}
                   <div className="ml-auto">

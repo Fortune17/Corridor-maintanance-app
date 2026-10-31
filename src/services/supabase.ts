@@ -103,11 +103,11 @@ class SupabaseService {
     return this.client;
   }
 
-  public getStatus(): { isConnected: boolean; url: string; anonKey: string } {
+  public getStatus(): { isConnected: boolean; url: string; hasKey: boolean } {
     return {
       isConnected: this.isConnected && !!this.client,
       url: this.url,
-      anonKey: this.anonKey,
+      hasKey: !!this.anonKey,
     };
   }
 

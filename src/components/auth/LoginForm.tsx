@@ -23,14 +23,12 @@ import {
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
-  onOpenSupabaseModal: () => void;
 }
 
 type AuthMode = 'sign_in' | 'register' | 'forgot_password';
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
-  onOpenSupabaseModal,
 }) => {
   const [roleTab, setRoleTab] = useState<'student' | 'staff'>('student');
   const [authMode, setAuthMode] = useState<AuthMode>('sign_in');
@@ -50,7 +48,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [roomNumber, setRoomNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [staffKey, setStaffKey] = useState('');
-  const [showStaffKey, setShowStaffKey] = useState(false);
 
   // Password reset inputs
   const [resetEmail, setResetEmail] = useState('');
@@ -61,8 +58,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const supabaseStatus = authService.getSupabaseStatus();
 
   // Handle Real Login
   const handleLogin = async (e: React.FormEvent) => {
@@ -169,27 +164,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {supabaseStatus.isConnected ? (
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-800">
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Supabase Cloud Connected</span>
-            </span>
-          ) : (
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-sky-300 bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-              <span>Secure Authentication Active</span>
-            </span>
-          )}
-
-          <button
-            onClick={onOpenSupabaseModal}
-            className="text-xs text-sky-300 hover:text-white flex items-center gap-1.5 transition-colors bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700 hover:border-slate-500"
-          >
-            <ShieldCheck className="w-4 h-4 text-sky-400" />
-            <span className="hidden sm:inline">Supabase DB</span>
-            <span className="sm:hidden">DB</span>
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-sky-200 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Residence Security Active</span>
+          </span>
         </div>
       </header>
 
@@ -476,22 +455,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     <div className="relative">
                       <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                       <input
-                        type={showStaffKey ? 'text' : 'password'}
+                        type="password"
                         value={staffKey}
                         onChange={(e) => setStaffKey(e.target.value)}
-                        placeholder="Enter confidential authorization passcode"
-                        className="w-full pl-9 pr-9 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 font-mono"
+                        placeholder="••••••••••••••••••••"
+                        className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 font-mono tracking-wider"
                         required
                         autoComplete="new-password"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowStaffKey(!showStaffKey)}
-                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 transition-colors"
-                        title={showStaffKey ? 'Hide passcode' : 'Show passcode'}
-                      >
-                        {showStaffKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
                     </div>
                     <p className="text-[11px] text-slate-500">
                       Confidential authorization code issued exclusively to verified personnel by Residence Administration.

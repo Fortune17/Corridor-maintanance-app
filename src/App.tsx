@@ -59,19 +59,12 @@ export default function App() {
   // If not logged in, show login page
   if (!currentUser) {
     return (
-      <>
-        <LoginForm
-          onLoginSuccess={() => {
-            const user = db.getCurrentUser();
-            setCurrentUser(user);
-          }}
-          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-        />
-        <SupabaseModal
-          isOpen={isSupabaseModalOpen}
-          onClose={() => setIsSupabaseModalOpen(false)}
-        />
-      </>
+      <LoginForm
+        onLoginSuccess={() => {
+          const user = db.getCurrentUser();
+          setCurrentUser(user);
+        }}
+      />
     );
   }
 
@@ -157,17 +150,13 @@ export default function App() {
       {/* Real-time In-App Notification Toast */}
       <NotificationToast onSelectRequest={handleSelectRequest} />
 
-      {/* Supabase Schema & RLS Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-      />
-
-      {/* Supabase Schema & RLS Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-      />
+      {/* Supabase Schema & Database Modal (Staff / Admin Only) */}
+      {isStaff && (
+        <SupabaseModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+        />
+      )}
 
       {/* Institutional Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 mt-auto">
@@ -179,13 +168,17 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              className="hover:text-slate-900 transition-colors underline"
-            >
-              PostgreSQL / Supabase Schema
-            </button>
-            <span>·</span>
+            {isStaff && (
+              <>
+                <button
+                  onClick={() => setIsSupabaseModalOpen(true)}
+                  className="hover:text-slate-900 transition-colors"
+                >
+                  Supabase Database
+                </button>
+                <span>·</span>
+              </>
+            )}
             <span>24/7 Security: +27 (0)11 555-0199</span>
           </div>
         </div>
