@@ -19,6 +19,7 @@ import {
   SAMPLE_HISTORY,
   SAMPLE_NOTIFICATIONS,
 } from './sampleData';
+import { supabaseService } from './supabase';
 
 const STORAGE_KEYS = {
   PROFILES: 'chm_profiles_v1',
@@ -30,6 +31,14 @@ const STORAGE_KEYS = {
   CURRENT_USER_ID: 'chm_current_user_id_v1',
 };
 
+function safePush(operation: any, label = 'Supabase operation') {
+  if (operation && typeof operation.then === 'function') {
+    Promise.resolve(operation).catch((err: unknown) => {
+      console.warn(`[Supabase Async Sync] ${label}:`, err);
+    });
+  }
+}
+
 class DatabaseService {
   private profiles: Profile[] = [];
   private requests: MaintenanceRequest[] = [];
@@ -40,9 +49,11 @@ class DatabaseService {
   private currentUser: Profile | null = null;
   private listeners: Set<() => void> = new Set();
   private notificationListeners: Set<(notif: AppNotification) => void> = new Set();
+  private isSyncingWithSupabase: boolean = false;
 
   constructor() {
     this.init();
+    this.listenToSupabase();
   }
 
   private init() {
@@ -67,10 +78,9 @@ class DatabaseService {
 
       const storedCurrentUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
       if (storedCurrentUserId) {
-        this.currentUser = this.profiles.find((p) => p.id === storedCurrentUserId) || this.profiles[0];
+        this.currentUser = this.profiles.find((p) => p.id === storedCurrentUserId) || null;
       } else {
-        // Default to student Thabo Moloi for initial preview
-        this.currentUser = this.profiles[0];
+        this.currentUser = null;
       }
 
       this.saveAll();
@@ -78,6 +88,86 @@ class DatabaseService {
       console.error('Failed to initialize local DB, falling back to sample data', e);
       this.resetToDefaults();
     }
+  }
+
+  private listenToSupabase() {
+    supabaseService.subscribe(() => {
+      this.pullFromSupabase();
+    });
+
+    // Initial check if Supabase is already configured
+    if (supabaseService.getStatus().isConnected) {
+      this.pullFromSupabase();
+    }
+  }
+
+  public async pullFromSupabase(): Promise<boolean> {
+    if (this.isSyncingWithSupabase) return false;
+    const client = supabaseService.getClient();
+    if (!client) return false;
+
+    this.isSyncingWithSupabase = true;
+    try {
+      const data = await supabaseService.fetchAllData();
+      if (!data) return false;
+
+      let changed = false;
+
+      if (data.profiles && data.profiles.length > 0) {
+        // Merge profiles by id
+        const map = new Map<string, Profile>();
+        this.profiles.forEach((p) => map.set(p.id, p));
+        data.profiles.forEach((p) => map.set(p.id, p));
+        this.profiles = Array.from(map.values());
+        changed = true;
+      }
+
+      if (data.requests && data.requests.length > 0) {
+        this.requests = data.requests;
+        changed = true;
+      }
+
+      if (data.comments && data.comments.length > 0) {
+        this.comments = data.comments;
+        changed = true;
+      }
+
+      if (data.attachments && data.attachments.length > 0) {
+        this.attachments = data.attachments;
+        changed = true;
+      }
+
+      if (data.history && data.history.length > 0) {
+        this.history = data.history;
+        changed = true;
+      }
+
+      if (data.notifications && data.notifications.length > 0) {
+        this.notifications = data.notifications;
+        changed = true;
+      }
+
+      if (changed) {
+        this.saveAll();
+      }
+      return true;
+    } catch (e) {
+      console.warn('Pull from Supabase encountered error:', e);
+      return false;
+    } finally {
+      this.isSyncingWithSupabase = false;
+    }
+  }
+
+  public async seedSupabase(): Promise<{ success: boolean; message: string }> {
+    return supabaseService.seedDatabase({
+      profiles: this.profiles,
+      requests: this.requests,
+      comments: this.comments,
+      attachments: this.attachments,
+      history: this.history,
+      notifications: this.notifications,
+    });
   }
 
   private saveAll() {
@@ -127,12 +217,18 @@ class DatabaseService {
       created_at: new Date().toISOString(),
     };
     this.notifications.unshift(notif);
-    
+
+    // Asynchronously push to Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('notifications').insert([notif]), 'notification insert');
+    }
+
     // Notify any active toast listener if the notification belongs to current user
     if (this.currentUser && notif.user_id === this.currentUser.id) {
       this.notificationListeners.forEach((nl) => nl(notif));
     }
-    
+
     return notif;
   }
 
@@ -147,7 +243,8 @@ class DatabaseService {
     this.attachments = [...SAMPLE_ATTACHMENTS];
     this.history = [...SAMPLE_HISTORY];
     this.notifications = [...SAMPLE_NOTIFICATIONS];
-    this.currentUser = this.profiles[0];
+    this.currentUser = null;
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     this.saveAll();
   }
 
@@ -174,38 +271,6 @@ class DatabaseService {
 
   public getStaffMembers(): Profile[] {
     return this.profiles.filter((p) => p.role === 'staff' || p.role === 'admin');
-  }
-
-  public login(email: string, role?: 'student' | 'staff'): Profile {
-    const cleanEmail = email.trim().toLowerCase();
-    let found = this.profiles.find((p) => p.email.toLowerCase() === cleanEmail);
-    
-    if (found) {
-      if (role && found.role !== role) {
-        throw new Error(`Account exists but is registered as a ${found.role}, not ${role}. Please select the correct login tab.`);
-      }
-      this.currentUser = found;
-      this.saveAll();
-      return found;
-    }
-
-    // Auto-create demonstration account if non-existent
-    const isStaff = role === 'staff' || cleanEmail.includes('staff') || cleanEmail.includes('@corridorhill.ac.za');
-    const newProfile: Profile = {
-      id: `user_${Date.now()}`,
-      full_name: cleanEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-      email: cleanEmail,
-      role: isStaff ? 'staff' : 'student',
-      student_number: isStaff ? undefined : `CH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      room_number: isStaff ? undefined : 'Room 101',
-      building: isStaff ? undefined : 'Block B (Pine Hall)',
-      created_at: new Date().toISOString(),
-    };
-
-    this.profiles.push(newProfile);
-    this.currentUser = newProfile;
-    this.saveAll();
-    return newProfile;
   }
 
   public logout() {
@@ -268,7 +333,6 @@ class DatabaseService {
       throw new Error('You must be logged in to submit a request.');
     }
 
-    // Enforce role: only students (or staff submitting on behalf)
     const year = new Date().getFullYear();
     const randNum = Math.floor(1000 + Math.random() * 9000);
     const reference_number = `CHM-${year}-${randNum}`;
@@ -294,7 +358,7 @@ class DatabaseService {
     this.requests.unshift(newReq);
 
     // Record History Audit Trail
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: newReq.id,
       actor_id: this.currentUser.id,
@@ -304,12 +368,14 @@ class DatabaseService {
       new_value: 'Submitted',
       notes: `Submitted by ${this.currentUser.full_name} (${this.currentUser.student_number || 'Student'})`,
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
 
     // Handle initial attachments
+    const newAttachments: RequestAttachment[] = [];
     if (params.attachments && params.attachments.length > 0) {
       params.attachments.forEach((att, idx) => {
-        this.attachments.push({
+        const item: RequestAttachment = {
           id: `att_${Date.now()}_${idx}`,
           request_id: newReq.id,
           uploaded_by: this.currentUser!.id,
@@ -320,34 +386,40 @@ class DatabaseService {
           file_size: att.file_size,
           is_completion_proof: false,
           created_at: now,
-        });
+        };
+        this.attachments.push(item);
+        newAttachments.push(item);
       });
     }
 
     // Notify all maintenance staff
     const staffMembers = this.getStaffMembers();
     staffMembers.forEach((staff) => {
-      this.notifications.unshift({
-        id: `notif_${Date.now()}_${staff.id}`,
+      this.pushNotification({
         user_id: staff.id,
         request_id: newReq.id,
         title: `New ${newReq.priority} Request: ${newReq.reference_number}`,
         message: `${this.currentUser!.full_name} reported: "${newReq.title}" at ${newReq.building}, ${newReq.room_number}.`,
-        read_at: null,
-        created_at: now,
       });
     });
 
     // Confirmation notification to the student
-    this.notifications.unshift({
-      id: `notif_${Date.now()}_${this.currentUser.id}`,
+    this.pushNotification({
       user_id: this.currentUser.id,
       request_id: newReq.id,
       title: `Request Submitted: ${newReq.reference_number}`,
       message: `Your maintenance ticket for "${newReq.title}" has been registered and queued for staff review.`,
-      read_at: null,
-      created_at: now,
     });
+
+    // Push to Supabase if connected
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('maintenance_requests').insert([newReq]), 'request insert');
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+      if (newAttachments.length > 0) {
+        safePush(client.from('request_attachments').insert(newAttachments), 'attachment insert');
+      }
+    }
 
     this.saveAll();
     return newReq;
@@ -390,7 +462,7 @@ class DatabaseService {
     }
 
     // Audit History Record
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: req.id,
       actor_id: this.currentUser.id,
@@ -401,7 +473,8 @@ class DatabaseService {
       new_value: newStatus,
       notes: options?.notes || (newStatus === 'Awaiting Parts' ? req.delay_reason : req.work_performed),
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
 
     const studentMessage =
       newStatus === 'Resolved'
@@ -438,6 +511,29 @@ class DatabaseService {
       });
     }
 
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            status: req.status,
+            updated_at: req.updated_at,
+            delay_reason: req.delay_reason,
+            work_performed: req.work_performed,
+            estimated_completion: req.estimated_completion,
+            resolved_at: req.resolved_at,
+            closed_at: req.closed_at,
+            student_confirmed_resolved: req.student_confirmed_resolved,
+          })
+          .eq('id', req.id),
+        'status update'
+      );
+
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+    }
+
     this.saveAll();
     return req;
   }
@@ -465,7 +561,7 @@ class DatabaseService {
     req.updated_at = now;
 
     // History
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: req.id,
       actor_id: this.currentUser.id,
@@ -475,30 +571,44 @@ class DatabaseService {
       previous_value: prevAssigned,
       new_value: tech.full_name,
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
 
     // Notify Student
-    this.notifications.unshift({
-      id: `notif_${Date.now()}_assign_student`,
+    this.pushNotification({
       user_id: req.student_id,
       request_id: req.id,
       title: `Technician Assigned: ${req.reference_number}`,
       message: `Staff member ${tech.full_name} has been assigned to handle your request.`,
-      read_at: null,
-      created_at: now,
     });
 
     // Notify Assigned Technician (if not the one assigning)
     if (tech.id !== this.currentUser.id) {
-      this.notifications.unshift({
-        id: `notif_${Date.now()}_assign_tech`,
+      this.pushNotification({
         user_id: tech.id,
         request_id: req.id,
         title: `Task Assigned: ${req.reference_number}`,
         message: `You were assigned to "${req.title}" at ${req.building}, ${req.room_number}.`,
-        read_at: null,
-        created_at: now,
       });
+    }
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            assigned_to: req.assigned_to,
+            assigned_to_name: req.assigned_to_name,
+            status: req.status,
+            updated_at: req.updated_at,
+          })
+          .eq('id', req.id),
+        'assign update'
+      );
+
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
     }
 
     this.saveAll();
@@ -519,7 +629,7 @@ class DatabaseService {
     req.priority = newPriority;
     req.updated_at = now;
 
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: req.id,
       actor_id: this.currentUser.id,
@@ -529,7 +639,22 @@ class DatabaseService {
       previous_value: prevPriority,
       new_value: newPriority,
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({ priority: req.priority, updated_at: req.updated_at })
+          .eq('id', req.id),
+        'priority update'
+      );
+
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+    }
 
     this.saveAll();
     return req;
@@ -552,7 +677,7 @@ class DatabaseService {
     req.closed_at = now;
     req.updated_at = now;
 
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: req.id,
       actor_id: this.currentUser.id,
@@ -563,19 +688,36 @@ class DatabaseService {
       new_value: 'Closed',
       notes: 'Student confirmed the work fixed the issue satisfactorily.',
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
 
     // Notify staff
     if (req.assigned_to) {
-      this.notifications.unshift({
-        id: `notif_${Date.now()}_close`,
+      this.pushNotification({
         user_id: req.assigned_to,
         request_id: req.id,
         title: `Work Confirmed & Closed: ${req.reference_number}`,
         message: `${this.currentUser.full_name} confirmed the issue was resolved and closed the ticket.`,
-        read_at: null,
-        created_at: now,
       });
+    }
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            status: 'Closed',
+            closed_at: req.closed_at,
+            student_confirmed_resolved: true,
+            updated_at: req.updated_at,
+          })
+          .eq('id', req.id),
+        'closed update'
+      );
+
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
     }
 
     this.saveAll();
@@ -602,7 +744,7 @@ class DatabaseService {
     req.reopen_count = (req.reopen_count || 0) + 1;
     req.updated_at = now;
 
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: req.id,
       actor_id: this.currentUser.id,
@@ -613,10 +755,11 @@ class DatabaseService {
       new_value: 'In Progress',
       notes: `Reopened reason: "${reason}" (Reopen #${req.reopen_count})`,
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
 
     // Add automatic comment
-    this.comments.push({
+    const reopenComment: RequestComment = {
       id: `comm_${Date.now()}`,
       request_id: req.id,
       author_id: this.currentUser.id,
@@ -625,7 +768,8 @@ class DatabaseService {
       comment: `[Ticket Reopened]: ${reason}`,
       visibility: 'student_visible',
       created_at: now,
-    });
+    };
+    this.comments.push(reopenComment);
 
     // Notify assigned staff or managers
     const notifyUserIds = req.assigned_to
@@ -633,16 +777,33 @@ class DatabaseService {
       : this.getStaffMembers().map((s) => s.id);
 
     notifyUserIds.forEach((uid) => {
-      this.notifications.unshift({
-        id: `notif_${Date.now()}_${uid}`,
+      this.pushNotification({
         user_id: uid,
         request_id: req.id,
         title: `Ticket Reopened: ${req.reference_number}`,
         message: `${this.currentUser!.full_name} reported problem persists: "${reason}".`,
-        read_at: null,
-        created_at: now,
       });
     });
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            status: 'In Progress',
+            student_confirmed_resolved: false,
+            reopen_count: req.reopen_count,
+            updated_at: req.updated_at,
+          })
+          .eq('id', req.id),
+        'reopen update'
+      );
+
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+      safePush(client.from('request_comments').insert([reopenComment]), 'reopen comment insert');
+    }
 
     this.saveAll();
     return req;
@@ -660,13 +821,11 @@ class DatabaseService {
       if (req.student_id !== this.currentUser.id) {
         throw new Error('RLS Violation: You cannot view comments for this request.');
       }
-      // Students ONLY see 'student_visible' comments!
       return this.comments.filter(
         (c) => c.request_id === requestId && c.visibility === 'student_visible'
       );
     }
 
-    // Staff sees all comments (both student_visible and staff_only)
     return this.comments.filter((c) => c.request_id === requestId);
   }
 
@@ -679,7 +838,6 @@ class DatabaseService {
     const req = this.requests.find((r) => r.id === requestId);
     if (!req) throw new Error('Request not found');
 
-    // Students CANNOT create staff_only internal notes!
     if (this.currentUser.role === 'student') {
       if (req.student_id !== this.currentUser.id) {
         throw new Error('RLS Violation');
@@ -705,7 +863,6 @@ class DatabaseService {
     // Notifications
     if (visibility === 'student_visible') {
       if (this.currentUser.role === 'student') {
-        // Notify assigned staff
         const targetStaff = req.assigned_to
           ? [req.assigned_to]
           : this.getStaffMembers().map((s) => s.id);
@@ -718,7 +875,6 @@ class DatabaseService {
           });
         });
       } else {
-        // Staff commented, notify student
         this.pushNotification({
           user_id: req.student_id,
           request_id: req.id,
@@ -728,13 +884,19 @@ class DatabaseService {
       }
     }
 
-    // Also push a confirmation notification to current user
     this.pushNotification({
       user_id: this.currentUser.id,
       request_id: req.id,
       title: `Comment Added: ${req.reference_number}`,
       message: `You added a ${visibility === 'staff_only' ? 'private staff note' : 'message'}: "${commentText.slice(0, 60)}..."`,
     });
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('request_comments').insert([newComment]), 'comment insert');
+      safePush(client.from('maintenance_requests').update({ updated_at: now }).eq('id', req.id), 'request update');
+    }
 
     this.saveAll();
     return newComment;
@@ -782,7 +944,7 @@ class DatabaseService {
 
     this.attachments.push(newAtt);
 
-    this.history.unshift({
+    const histRecord: RequestHistory = {
       id: `hist_${Date.now()}`,
       request_id: requestId,
       actor_id: this.currentUser.id,
@@ -791,7 +953,15 @@ class DatabaseService {
       action: file.is_completion_proof ? 'Completion Proof Photo Attached' : 'Photo Attachment Uploaded',
       notes: file.file_name,
       created_at: now,
-    });
+    };
+    this.history.unshift(histRecord);
+
+    // Update in Supabase
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('request_attachments').insert([newAtt]), 'attachment insert');
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+    }
 
     this.saveAll();
     return newAtt;
@@ -825,6 +995,10 @@ class DatabaseService {
     const notif = this.notifications.find((n) => n.id === id);
     if (notif && notif.user_id === this.currentUser?.id) {
       notif.read_at = new Date().toISOString();
+      const client = supabaseService.getClient();
+      if (client) {
+        safePush(client.from('notifications').update({ read_at: notif.read_at }).eq('id', id), 'notification read');
+      }
       this.saveAll();
     }
   }
@@ -837,6 +1011,12 @@ class DatabaseService {
         n.read_at = now;
       }
     });
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('notifications').update({ read_at: now }).eq('user_id', this.currentUser.id), 'mark all read');
+    }
+
     this.saveAll();
   }
 
@@ -891,7 +1071,7 @@ class DatabaseService {
       }
     });
 
-    // Average Response Time (Time from Created to Under Review / Assigned / First Status Change)
+    // Average Response Time
     let totalResponseHours = 0;
     let responseCount = 0;
     all.forEach((r) => {
@@ -910,7 +1090,7 @@ class DatabaseService {
     });
     const avgResponseTimeHours = responseCount > 0 ? (totalResponseHours / responseCount).toFixed(1) : '2.4';
 
-    // Average Resolution Time (Time from Created to Resolved)
+    // Average Resolution Time
     let totalResolutionHours = 0;
     let resolutionCount = 0;
     all.forEach((r) => {

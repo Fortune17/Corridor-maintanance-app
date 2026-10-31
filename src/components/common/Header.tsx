@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Profile } from '../../types/database';
 import { db } from '../../services/db';
+import { authService } from '../../services/authService';
+import { supabaseService } from '../../services/supabase';
 import { 
   Building2, 
   Bell, 
@@ -20,6 +22,7 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   onOpenNewRequestModal?: () => void;
   onOpenSupabaseModal: () => void;
+  onOpenVercelModal: () => void;
   onSelectRequest: (requestId: string) => void;
 }
 
@@ -29,23 +32,31 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenNewRequestModal,
   onOpenSupabaseModal,
+  onOpenVercelModal,
   onSelectRequest,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState(db.getNotifications());
+  const [isSupabaseLive, setIsSupabaseLive] = useState(supabaseService.getStatus().isConnected);
 
   useEffect(() => {
-    const unsubscribe = db.subscribe(() => {
+    const unsubDb = db.subscribe(() => {
       setNotifications(db.getNotifications());
     });
-    return () => unsubscribe();
+    const unsubSupabase = supabaseService.subscribe(() => {
+      setIsSupabaseLive(supabaseService.getStatus().isConnected);
+    });
+    return () => {
+      unsubDb();
+      unsubSupabase();
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   const handleLogout = () => {
-    db.logout();
+    authService.signOut();
   };
 
   const isStaff = currentUser.role === 'staff' || currentUser.role === 'admin';
@@ -145,10 +156,27 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={onOpenSupabaseModal}
-              className="hover:text-sky-900 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800"
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+                isSupabaseLive
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={isSupabaseLive ? 'Connected to live Supabase PostgreSQL project' : 'Open Supabase Database & Schema panel'}
             >
-              <Database className="w-3.5 h-3.5 text-slate-400" />
-              <span>Supabase / RLS</span>
+              <Database className={`w-3.5 h-3.5 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
+              <span className="whitespace-nowrap">{isSupabaseLive ? 'Supabase Live' : 'Supabase DB'}</span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isSupabaseLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            </button>
+
+            <button
+              onClick={onOpenVercelModal}
+              className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors bg-slate-900 hover:bg-black text-white shadow-xs"
+              title="Open Vercel Deployment setup, vercel.json, and environment variables"
+            >
+              <svg width="12" height="12" viewBox="0 0 1155 1000" fill="currentColor">
+                <path d="m577.346 0 577.346 1000H0z" />
+              </svg>
+              <span className="whitespace-nowrap">Deploy</span>
             </button>
           </nav>
 
@@ -315,10 +343,39 @@ export const Header: React.FC<HeaderProps> = ({
                   onOpenSupabaseModal();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-md flex items-center gap-2"
+                className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border ${
+                  isSupabaseLive
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}
               >
-                <Database className="w-4 h-4 text-slate-500" />
-                <span>Supabase Schema & RLS Policies</span>
+                <div className="flex items-center gap-2">
+                  <Database className={`w-4 h-4 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
+                  <span>Supabase Database & Tables</span>
+                </div>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  isSupabaseLive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {isSupabaseLive ? 'Connected' : 'Local'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onOpenVercelModal();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border bg-slate-900 text-white border-slate-950"
+              >
+                <div className="flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 1155 1000" fill="currentColor">
+                    <path d="m577.346 0 577.346 1000H0z" />
+                  </svg>
+                  <span>Deploy to Vercel</span>
+                </div>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-sky-300">
+                  Ready
+                </span>
               </button>
             </div>
           </div>
