@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../../services/authService';
 import { BuildingBlock, UserRole } from '../../types/database';
 import { 
@@ -27,13 +27,26 @@ interface LoginFormProps {
 
 type AuthMode = 'sign_in' | 'register' | 'forgot_password';
 
+// Helper to detect if a value contains Supabase URLs, anon keys, or JWT tokens
+const isSupabaseOrKeyString = (str: string): boolean => {
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  return (
+    lower.includes('supabase') ||
+    lower.startsWith('http://') ||
+    lower.startsWith('https://') ||
+    lower.includes('.co') ||
+    str.startsWith('eyJ')
+  );
+};
+
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
 }) => {
   const [roleTab, setRoleTab] = useState<'student' | 'staff'>('student');
   const [authMode, setAuthMode] = useState<AuthMode>('sign_in');
 
-  // Sign In inputs
+  // Sign In inputs - strictly initialized empty
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,6 +71,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Aggressive cleanser to prevent browser autofill from inserting saved Supabase keys
+  useEffect(() => {
+    try {
+      localStorage.removeItem('chm_supabase_config_v1');
+      localStorage.removeItem('supabase.auth.token');
+    } catch (_) {}
+
+    const sanitizeInputs = () => {
+      setEmail((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
+      setPassword((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
+      setRegEmail((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
+      setRegPassword((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
+    };
+
+    sanitizeInputs();
+    const timers = [25, 75, 150, 300, 600, 1000, 1500].map((t) =>
+      setTimeout(sanitizeInputs, t)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   // Handle Real Login
   const handleLogin = async (e: React.FormEvent) => {
@@ -256,7 +290,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
             {/* --- 1. SIGN IN MODE --- */}
             {authMode === 'sign_in' && (
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
+                {/* Decoy fields to capture aggressive browser credential autofill */}
+                <input
+                  type="text"
+                  name="fake_user_capture"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="sr-only opacity-0 absolute -top-[9999px] -left-[9999px] w-0 h-0 pointer-events-none"
+                  autoComplete="off"
+                />
+                <input
+                  type="password"
+                  name="fake_secret_capture"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="sr-only opacity-0 absolute -top-[9999px] -left-[9999px] w-0 h-0 pointer-events-none"
+                  autoComplete="off"
+                />
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                     {roleTab === 'student' ? 'Student University Email' : 'Authorized Staff Email'}
@@ -266,9 +318,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                       <Mail className="w-4 h-4" />
                     </div>
                     <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="text"
+                      inputMode="email"
+                      name="chm_residence_account_email_id"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      value={isSupabaseOrKeyString(email) ? '' : email}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEmail(isSupabaseOrKeyString(val) ? '' : val);
+                      }}
                       placeholder={
                         roleTab === 'student'
                           ? 'student.number@student.corridorhill.ac.za'
@@ -288,7 +349,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setResetEmail(email);
+                        setResetEmail(isSupabaseOrKeyString(email) ? '' : email);
                         setAuthMode('forgot_password');
                         setError(null);
                       }}
@@ -303,8 +364,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      name="chm_residence_account_access_key"
+                      autoComplete="new-password"
+                      value={isSupabaseOrKeyString(password) ? '' : password}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPassword(isSupabaseOrKeyString(val) ? '' : val);
+                      }}
                       placeholder="Enter your password"
                       className="w-full pl-9 pr-10 py-2 text-sm border border-slate-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-sky-600 focus:border-transparent transition-all"
                       required
@@ -380,9 +446,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
+                      type="text"
+                      inputMode="email"
+                      name="new_student_or_staff_email"
+                      autoComplete="off"
+                      value={isSupabaseOrKeyString(regEmail) ? '' : regEmail}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRegEmail(isSupabaseOrKeyString(val) ? '' : val);
+                      }}
                       placeholder={
                         roleTab === 'student'
                           ? 's.dlamini@student.corridorhill.ac.za'
@@ -477,8 +549,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     </label>
                     <input
                       type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
+                      name="new_student_account_password"
+                      autoComplete="new-password"
+                      value={isSupabaseOrKeyString(regPassword) ? '' : regPassword}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRegPassword(isSupabaseOrKeyString(val) ? '' : val);
+                      }}
                       placeholder="••••••••"
                       className="w-full px-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
                       required
@@ -490,8 +567,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     </label>
                     <input
                       type="password"
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      name="new_student_account_password_confirm"
+                      autoComplete="new-password"
+                      value={isSupabaseOrKeyString(regConfirmPassword) ? '' : regConfirmPassword}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRegConfirmPassword(isSupabaseOrKeyString(val) ? '' : val);
+                      }}
                       placeholder="••••••••"
                       className="w-full px-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
                       required
@@ -531,9 +613,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     Your Registered University Email
                   </label>
                   <input
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
+                    type="text"
+                    inputMode="email"
+                    name="pwd_reset_user_email"
+                    autoComplete="off"
+                    value={isSupabaseOrKeyString(resetEmail) ? '' : resetEmail}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setResetEmail(isSupabaseOrKeyString(val) ? '' : val);
+                    }}
                     placeholder="e.g. yourname@student.corridorhill.ac.za"
                     className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
                     required
@@ -546,8 +634,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   </label>
                   <input
                     type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    name="pwd_reset_new_secret"
+                    autoComplete="new-password"
+                    value={isSupabaseOrKeyString(newPassword) ? '' : newPassword}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewPassword(isSupabaseOrKeyString(val) ? '' : val);
+                    }}
                     placeholder="New secure password"
                     className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
                     required

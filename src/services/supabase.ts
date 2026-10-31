@@ -28,30 +28,16 @@ class SupabaseService {
   }
 
   private init() {
-    // 1. Try reading from environment variables
-    const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-    const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-
-    // 2. Try reading from localStorage override
-    let cfgUrl = envUrl;
-    let cfgKey = envKey;
-
+    // Purge any stored Supabase keys from localStorage
     try {
-      const stored = localStorage.getItem(SUPABASE_STORAGE_KEY);
-      if (stored) {
-        const parsed: SupabaseConfig = JSON.parse(stored);
-        if (parsed.url && parsed.anonKey) {
-          cfgUrl = parsed.url;
-          cfgKey = parsed.anonKey;
-        }
-      }
-    } catch (e) {
-      console.warn('Could not read stored Supabase configuration', e);
-    }
+      localStorage.removeItem(SUPABASE_STORAGE_KEY);
+      localStorage.removeItem('supabase.auth.token');
+    } catch (_) {}
 
-    if (cfgUrl && cfgKey) {
-      this.configure(cfgUrl, cfgKey, false);
-    }
+    this.client = null;
+    this.url = '';
+    this.anonKey = '';
+    this.isConnected = false;
   }
 
   public configure(url: string, anonKey: string, persist: boolean = true): boolean {

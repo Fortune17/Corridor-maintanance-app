@@ -30,7 +30,7 @@ interface SupabaseModalProps {
 export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'connect' | 'explorer' | 'sql' | 'architecture' | 'checklist'>('connect');
-  const [supabaseUrlInput, setSupabaseUrlInput] = useState(authService.getSupabaseStatus().url);
+  const [supabaseUrlInput, setSupabaseUrlInput] = useState('');
   const [supabaseKeyInput, setSupabaseKeyInput] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -57,7 +57,6 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({ isOpen, onClose })
 
   useEffect(() => {
     if (isOpen) {
-      setSupabaseUrlInput(supabaseService.getStatus().url);
       if (isSupabaseLive) {
         refreshCounts();
       }
@@ -468,13 +467,14 @@ create policy "Allow update notifications" on public.notifications for update us
               </div>
 
               {/* Credentials Form */}
-              <form onSubmit={handleSaveSupabaseConfig} className="space-y-3 bg-white p-4 rounded-xl border border-slate-200">
+              {/* Credentials Configuration */}
+              <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
                     <Globe className="w-4 h-4 text-sky-700" />
                     <span>Supabase Project Configuration</span>
                   </h4>
-                  <span className="text-[11px] text-slate-400">Environment or LocalStorage Config</span>
+                  <span className="text-[11px] text-slate-400">Database Connection</span>
                 </div>
 
                 <div>
@@ -482,11 +482,13 @@ create policy "Allow update notifications" on public.notifications for update us
                     Supabase Project URL
                   </label>
                   <input
-                    type="url"
+                    type="text"
+                    name="custom_cloud_endpoint"
                     value={supabaseUrlInput}
                     onChange={(e) => setSupabaseUrlInput(e.target.value)}
                     placeholder="https://your-project-id.supabase.co"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-sky-600 focus:outline-none"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-sky-600 focus:outline-hidden"
+                    autoComplete="off"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Found in your Supabase Dashboard: <strong>Project Settings &rarr; API &rarr; Project URL</strong>
@@ -499,11 +501,12 @@ create policy "Allow update notifications" on public.notifications for update us
                   </label>
                   <input
                     type="password"
+                    name="custom_cloud_secret"
                     value={supabaseKeyInput}
                     onChange={(e) => setSupabaseKeyInput(e.target.value)}
                     placeholder={authService.getSupabaseStatus().hasKey ? "•••••••••••••••••••••••• (configured)" : "Enter anon public API key"}
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-sky-600 focus:outline-hidden"
-                    autoComplete="off"
+                    autoComplete="new-password"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Found in your Supabase Dashboard: <strong>Project Settings &rarr; API &rarr; Project API keys (<code className="text-slate-600">anon public</code>)</strong>
@@ -522,12 +525,13 @@ create policy "Allow update notifications" on public.notifications for update us
                     </button>
                   ) : (
                     <span className="text-xs text-slate-400 italic">
-                      Configure via environment variables or set credentials securely above.
+                      Configure custom credentials or leave blank to operate in local mode.
                     </span>
                   )}
                   <div className="ml-auto">
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleSaveSupabaseConfig}
                       disabled={isSavingConfig}
                       className="px-4 py-2 bg-sky-900 hover:bg-sky-800 text-white font-semibold text-xs rounded-lg shadow-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
                     >
@@ -536,7 +540,7 @@ create policy "Allow update notifications" on public.notifications for update us
                     </button>
                   </div>
                 </div>
-              </form>
+              </div>
             </div>
           )}
 
