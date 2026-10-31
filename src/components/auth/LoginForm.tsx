@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authService, STAFF_SECURITY_CODE } from '../../services/authService';
+import { authService } from '../../services/authService';
 import { BuildingBlock, UserRole } from '../../types/database';
 import { 
   Building2, 
@@ -24,7 +24,6 @@ import {
 interface LoginFormProps {
   onLoginSuccess: () => void;
   onOpenSupabaseModal: () => void;
-  onOpenVercelModal?: () => void;
 }
 
 type AuthMode = 'sign_in' | 'register' | 'forgot_password';
@@ -32,7 +31,6 @@ type AuthMode = 'sign_in' | 'register' | 'forgot_password';
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
   onOpenSupabaseModal,
-  onOpenVercelModal,
 }) => {
   const [roleTab, setRoleTab] = useState<'student' | 'staff'>('student');
   const [authMode, setAuthMode] = useState<AuthMode>('sign_in');
@@ -49,9 +47,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
   const [building, setBuilding] = useState<BuildingBlock>('Block B (Pine Hall)');
-  const [roomNumber, setRoomNumber] = useState('Room 201');
+  const [roomNumber, setRoomNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [staffKey, setStaffKey] = useState('');
+  const [showStaffKey, setShowStaffKey] = useState(false);
 
   // Password reset inputs
   const [resetEmail, setResetEmail] = useState('');
@@ -151,15 +150,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     }
   };
 
-  // Helper to fill credentials for testing
-  const handleFillCredentials = (accEmail: string, accPass: string, role: 'student' | 'staff') => {
-    setRoleTab(role);
-    setEmail(accEmail);
-    setPassword(accPass);
-    setError(null);
-    setSuccessMessage(null);
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-between relative overflow-hidden">
       {/* Background Subtle Geometric Pattern */}
@@ -200,19 +190,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <span className="hidden sm:inline">Supabase DB</span>
             <span className="sm:hidden">DB</span>
           </button>
-
-          {onOpenVercelModal && (
-            <button
-              onClick={onOpenVercelModal}
-              className="text-xs text-white hover:bg-black flex items-center gap-1.5 transition-colors bg-slate-900 px-3 py-1.5 rounded-md border border-slate-700 hover:border-slate-500 shadow-xs"
-              title="Vercel Deployment Guide & Config"
-            >
-              <svg width="12" height="12" viewBox="0 0 1155 1000" fill="currentColor">
-                <path d="m577.346 0 577.346 1000H0z" />
-              </svg>
-              <span>Deploy</span>
-            </button>
-          )}
         </div>
       </header>
 
@@ -315,8 +292,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={
                         roleTab === 'student'
-                          ? 'thabo.moloi@student.corridorhill.ac.za'
-                          : 'mark.g@corridorhill.ac.za'
+                          ? 'student.number@student.corridorhill.ac.za'
+                          : 'staff.name@corridorhill.ac.za'
                       }
                       className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-sky-600 focus:border-transparent transition-all"
                       required
@@ -492,23 +469,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
                 {/* Staff specific authorization security key */}
                 {roleTab === 'staff' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-md space-y-1.5">
-                    <label className="block text-xs font-semibold text-amber-950 uppercase tracking-wider">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider">
                       Staff Security Passcode <span className="text-red-600">*</span>
                     </label>
                     <div className="relative">
-                      <KeyRound className="w-4 h-4 text-amber-600 absolute left-3 top-2.5" />
+                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                       <input
-                        type="text"
+                        type={showStaffKey ? 'text' : 'password'}
                         value={staffKey}
                         onChange={(e) => setStaffKey(e.target.value)}
-                        placeholder="Enter Staff Key (Demo: CORRIDOR-STAFF-2026)"
-                        className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-amber-300 rounded-md focus:ring-2 focus:ring-amber-600 font-mono"
+                        placeholder="Enter confidential authorization passcode"
+                        className="w-full pl-9 pr-9 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 font-mono"
                         required
+                        autoComplete="new-password"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowStaffKey(!showStaffKey)}
+                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 transition-colors"
+                        title={showStaffKey ? 'Hide passcode' : 'Show passcode'}
+                      >
+                        {showStaffKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
-                    <p className="text-[11px] text-amber-800">
-                      Demo Security Passcode: <strong className="font-mono">CORRIDOR-STAFF-2026</strong>
+                    <p className="text-[11px] text-slate-500">
+                      Confidential authorization code issued exclusively to verified personnel by Residence Administration.
                     </p>
                   </div>
                 )}
@@ -577,7 +563,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     type="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="e.g. thabo.moloi@student.corridorhill.ac.za"
+                    placeholder="e.g. yourname@student.corridorhill.ac.za"
                     className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
                     required
                   />
@@ -618,102 +604,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 </div>
               </form>
             )}
-
-            {/* --- 4. VERIFIED ACCOUNTS CREDENTIALS HELPER --- */}
-            <div className="mt-6 pt-5 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  Pre-Seeded Registered Accounts
-                </span>
-                <span className="text-[10px] text-slate-400">Click to fill credentials</span>
-              </div>
-
-              {roleTab === 'student' ? (
-                <div className="space-y-2">
-                  <div
-                    onClick={() => handleFillCredentials('thabo.moloi@student.corridorhill.ac.za', 'Student@2026', 'student')}
-                    className="p-2.5 rounded-md border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900 group-hover:text-sky-900">
-                        Thabo Moloi <span className="font-normal text-slate-500">· Room 204 Block B</span>
-                      </p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        Email: thabo.moloi@student.corridorhill.ac.za
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Password: <strong className="font-mono text-slate-700">Student@2026</strong>
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-sky-700 group-hover:translate-x-0.5 transition-transform">
-                      Fill &rarr;
-                    </span>
-                  </div>
-
-                  <div
-                    onClick={() => handleFillCredentials('sarah.j@student.corridorhill.ac.za', 'Student@2026', 'student')}
-                    className="p-2.5 rounded-md border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900 group-hover:text-sky-900">
-                        Sarah Jenkins <span className="font-normal text-slate-500">· Room 112 Block A</span>
-                      </p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        Email: sarah.j@student.corridorhill.ac.za
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Password: <strong className="font-mono text-slate-700">Student@2026</strong>
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-sky-700 group-hover:translate-x-0.5 transition-transform">
-                      Fill &rarr;
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div
-                    onClick={() => handleFillCredentials('mark.g@corridorhill.ac.za', 'Staff@2026', 'staff')}
-                    className="p-2.5 rounded-md border border-amber-200 hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900 group-hover:text-amber-900">
-                        Mark Gallagher <span className="font-medium text-amber-700 text-[11px]">· Facilities Manager</span>
-                      </p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        Email: mark.g@corridorhill.ac.za
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Password: <strong className="font-mono text-slate-700">Staff@2026</strong>
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-amber-800 group-hover:translate-x-0.5 transition-transform">
-                      Fill &rarr;
-                    </span>
-                  </div>
-
-                  <div
-                    onClick={() => handleFillCredentials('david.n@corridorhill.ac.za', 'Staff@2026', 'staff')}
-                    className="p-2.5 rounded-md border border-amber-200 hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900 group-hover:text-amber-900">
-                        David Nkosi <span className="font-medium text-amber-700 text-[11px]">· Senior Electrician</span>
-                      </p>
-                      <p className="text-[11px] font-mono text-slate-500">
-                        Email: david.n@corridorhill.ac.za
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Password: <strong className="font-mono text-slate-700">Staff@2026</strong>
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold text-amber-800 group-hover:translate-x-0.5 transition-transform">
-                      Fill &rarr;
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

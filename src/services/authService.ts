@@ -16,12 +16,12 @@ interface StoredCredential {
 }
 
 const STORAGE_KEYS = {
-  CREDENTIALS: 'chm_auth_credentials_v1',
-  SESSION: 'chm_auth_session_v1',
+  CREDENTIALS: 'chm_auth_credentials_prod_v2',
+  SESSION: 'chm_auth_session_prod_v2',
 };
 
-// Staff Authorization Passcode for registering new staff members
-export const STAFF_SECURITY_CODE = 'CORRIDOR-STAFF-2026';
+// Staff Authorization Passcode for registering new staff members (confidential)
+export const STAFF_SECURITY_CODE = 'CORRIDOR-STAFF-5849';
 
 // Helper for SHA-256 password hashing with salt using browser Web Crypto API
 async function hashPassword(password: string, salt: string): Promise<string> {
@@ -40,7 +40,13 @@ class AuthService {
   }
 
   private async init() {
-    // 1. Load stored credentials or seed defaults
+    // Purge legacy demo keys if present
+    try {
+      localStorage.removeItem('chm_auth_credentials_v1');
+      localStorage.removeItem('chm_auth_session_v1');
+    } catch (_) {}
+
+    // Load stored production credentials
     const storedCreds = localStorage.getItem(STORAGE_KEYS.CREDENTIALS);
     if (storedCreds) {
       try {
@@ -49,41 +55,6 @@ class AuthService {
       } catch (e) {
         console.error('Failed to load credentials from storage', e);
       }
-    }
-
-    // Seed default credentials for standard demo profiles if not yet stored
-    await this.seedDefaultCredentials();
-  }
-
-  private async seedDefaultCredentials() {
-    const defaultAccounts = [
-      { email: 'thabo.moloi@student.corridorhill.ac.za', password: 'Student@2026', role: 'student' as UserRole },
-      { email: 'sarah.j@student.corridorhill.ac.za', password: 'Student@2026', role: 'student' as UserRole },
-      { email: 'liam.vz@student.corridorhill.ac.za', password: 'Student@2026', role: 'student' as UserRole },
-      { email: 'mark.g@corridorhill.ac.za', password: 'Staff@2026', role: 'staff' as UserRole },
-      { email: 'david.n@corridorhill.ac.za', password: 'Staff@2026', role: 'staff' as UserRole },
-      { email: 'samir.p@corridorhill.ac.za', password: 'Staff@2026', role: 'staff' as UserRole },
-      { email: 'elena.r@corridorhill.ac.za', password: 'Staff@2026', role: 'staff' as UserRole },
-    ];
-
-    let hasNew = false;
-    for (const acc of defaultAccounts) {
-      const emailLower = acc.email.toLowerCase();
-      if (!this.credentials.has(emailLower)) {
-        const salt = Math.random().toString(36).substring(2, 10);
-        const passwordHash = await hashPassword(acc.password, salt);
-        this.credentials.set(emailLower, {
-          email: emailLower,
-          passwordHash,
-          role: acc.role,
-          salt,
-        });
-        hasNew = true;
-      }
-    }
-
-    if (hasNew) {
-      this.saveCredentials();
     }
   }
 

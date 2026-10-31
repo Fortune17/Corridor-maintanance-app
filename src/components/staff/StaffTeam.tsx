@@ -32,7 +32,18 @@ export const StaffTeam: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {staff.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+            <Wrench className="w-6 h-6" />
+          </div>
+          <h2 className="text-sm font-bold text-slate-800">No Staff Members Registered Yet</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Authorized residence personnel can register new staff accounts using the confidential security passcode provided by residence administration.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {staff.map((member) => {
           const activeTasks = allRequests.filter(
             (r) => r.assigned_to === member.id && r.status !== 'Resolved' && r.status !== 'Closed'
@@ -114,7 +125,8 @@ export const StaffTeam: React.FC = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

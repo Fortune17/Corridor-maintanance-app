@@ -22,7 +22,6 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   onOpenNewRequestModal?: () => void;
   onOpenSupabaseModal: () => void;
-  onOpenVercelModal: () => void;
   onSelectRequest: (requestId: string) => void;
 }
 
@@ -32,7 +31,6 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenNewRequestModal,
   onOpenSupabaseModal,
-  onOpenVercelModal,
   onSelectRequest,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -166,17 +164,6 @@ export const Header: React.FC<HeaderProps> = ({
               <Database className={`w-3.5 h-3.5 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
               <span className="whitespace-nowrap">{isSupabaseLive ? 'Supabase Live' : 'Supabase DB'}</span>
               <span className={`w-2 h-2 rounded-full shrink-0 ${isSupabaseLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-            </button>
-
-            <button
-              onClick={onOpenVercelModal}
-              className="px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors bg-slate-900 hover:bg-black text-white shadow-xs"
-              title="Open Vercel Deployment setup, vercel.json, and environment variables"
-            >
-              <svg width="12" height="12" viewBox="0 0 1155 1000" fill="currentColor">
-                <path d="m577.346 0 577.346 1000H0z" />
-              </svg>
-              <span className="whitespace-nowrap">Deploy</span>
             </button>
           </nav>
 
@@ -357,24 +344,6 @@ export const Header: React.FC<HeaderProps> = ({
                   isSupabaseLive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
                 }`}>
                   {isSupabaseLive ? 'Connected' : 'Local'}
-                </span>
-              </button>
-
-              <button
-                onClick={() => {
-                  onOpenVercelModal();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border bg-slate-900 text-white border-slate-950"
-              >
-                <div className="flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 1155 1000" fill="currentColor">
-                    <path d="m577.346 0 577.346 1000H0z" />
-                  </svg>
-                  <span>Deploy to Vercel</span>
-                </div>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-sky-300">
-                  Ready
                 </span>
               </button>
             </div>

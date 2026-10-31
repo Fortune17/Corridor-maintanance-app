@@ -17,7 +17,6 @@ import { StaffRequestDetail } from './components/staff/StaffRequestDetail';
 import { StaffAnalytics } from './components/staff/StaffAnalytics';
 import { StaffTeam } from './components/staff/StaffTeam';
 import { SupabaseModal } from './components/database/SupabaseModal';
-import { VercelDeployModal } from './components/deploy/VercelDeployModal';
 import { NotificationToast } from './components/common/NotificationToast';
 
 export default function App() {
@@ -26,7 +25,6 @@ export default function App() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
-  const [isVercelModalOpen, setIsVercelModalOpen] = useState(false);
   const [, setTick] = useState(0);
 
   // Subscribe to DB changes
@@ -68,15 +66,10 @@ export default function App() {
             setCurrentUser(user);
           }}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-          onOpenVercelModal={() => setIsVercelModalOpen(true)}
         />
         <SupabaseModal
           isOpen={isSupabaseModalOpen}
           onClose={() => setIsSupabaseModalOpen(false)}
-        />
-        <VercelDeployModal
-          isOpen={isVercelModalOpen}
-          onClose={() => setIsVercelModalOpen(false)}
         />
       </>
     );
@@ -97,7 +90,6 @@ export default function App() {
         }}
         onOpenNewRequestModal={() => setIsNewRequestModalOpen(true)}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-        onOpenVercelModal={() => setIsVercelModalOpen(true)}
         onSelectRequest={handleSelectRequest}
       />
 
@@ -171,10 +163,10 @@ export default function App() {
         onClose={() => setIsSupabaseModalOpen(false)}
       />
 
-      {/* Vercel Deployment Modal */}
-      <VercelDeployModal
-        isOpen={isVercelModalOpen}
-        onClose={() => setIsVercelModalOpen(false)}
+      {/* Supabase Schema & RLS Modal */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
       />
 
       {/* Institutional Footer */}
@@ -187,16 +179,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsVercelModalOpen(true)}
-              className="hover:text-slate-900 transition-colors underline font-medium text-slate-700 flex items-center gap-1"
-            >
-              <svg width="10" height="10" viewBox="0 0 1155 1000" fill="currentColor">
-                <path d="m577.346 0 577.346 1000H0z" />
-              </svg>
-              Deploy to Vercel
-            </button>
-            <span>·</span>
             <button
               onClick={() => setIsSupabaseModalOpen(true)}
               className="hover:text-slate-900 transition-colors underline"

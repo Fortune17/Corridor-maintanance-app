@@ -22,13 +22,13 @@ import {
 import { supabaseService } from './supabase';
 
 const STORAGE_KEYS = {
-  PROFILES: 'chm_profiles_v1',
-  REQUESTS: 'chm_requests_v1',
-  COMMENTS: 'chm_comments_v1',
-  ATTACHMENTS: 'chm_attachments_v1',
-  HISTORY: 'chm_history_v1',
-  NOTIFICATIONS: 'chm_notifications_v1',
-  CURRENT_USER_ID: 'chm_current_user_id_v1',
+  PROFILES: 'chm_prod_profiles_v2',
+  REQUESTS: 'chm_prod_requests_v2',
+  COMMENTS: 'chm_prod_comments_v2',
+  ATTACHMENTS: 'chm_prod_attachments_v2',
+  HISTORY: 'chm_prod_history_v2',
+  NOTIFICATIONS: 'chm_prod_notifications_v2',
+  CURRENT_USER_ID: 'chm_prod_current_user_id_v2',
 };
 
 function safePush(operation: any, label = 'Supabase operation') {
@@ -58,23 +58,40 @@ class DatabaseService {
 
   private init() {
     try {
+      // Purge all legacy demo and test keys from previous iterations
+      [
+        'chm_profiles_v1',
+        'chm_requests_v1',
+        'chm_comments_v1',
+        'chm_attachments_v1',
+        'chm_history_v1',
+        'chm_notifications_v1',
+        'chm_current_user_id_v1',
+        'chm_auth_credentials_v1',
+        'chm_auth_session_v1',
+      ].forEach((k) => {
+        try {
+          localStorage.removeItem(k);
+        } catch (_) {}
+      });
+
       const storedProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES);
-      this.profiles = storedProfiles ? JSON.parse(storedProfiles) : [...SAMPLE_PROFILES];
+      this.profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
 
       const storedRequests = localStorage.getItem(STORAGE_KEYS.REQUESTS);
-      this.requests = storedRequests ? JSON.parse(storedRequests) : [...SAMPLE_REQUESTS];
+      this.requests = storedRequests ? JSON.parse(storedRequests) : [];
 
       const storedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-      this.comments = storedComments ? JSON.parse(storedComments) : [...SAMPLE_COMMENTS];
+      this.comments = storedComments ? JSON.parse(storedComments) : [];
 
       const storedAttachments = localStorage.getItem(STORAGE_KEYS.ATTACHMENTS);
-      this.attachments = storedAttachments ? JSON.parse(storedAttachments) : [...SAMPLE_ATTACHMENTS];
+      this.attachments = storedAttachments ? JSON.parse(storedAttachments) : [];
 
       const storedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
-      this.history = storedHistory ? JSON.parse(storedHistory) : [...SAMPLE_HISTORY];
+      this.history = storedHistory ? JSON.parse(storedHistory) : [];
 
       const storedNotifications = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-      this.notifications = storedNotifications ? JSON.parse(storedNotifications) : [...SAMPLE_NOTIFICATIONS];
+      this.notifications = storedNotifications ? JSON.parse(storedNotifications) : [];
 
       const storedCurrentUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
       if (storedCurrentUserId) {
@@ -85,7 +102,7 @@ class DatabaseService {
 
       this.saveAll();
     } catch (e) {
-      console.error('Failed to initialize local DB, falling back to sample data', e);
+      console.error('Failed to initialize local DB, initializing clean state', e);
       this.resetToDefaults();
     }
   }
@@ -237,12 +254,12 @@ class DatabaseService {
   }
 
   public resetToDefaults() {
-    this.profiles = [...SAMPLE_PROFILES];
-    this.requests = [...SAMPLE_REQUESTS];
-    this.comments = [...SAMPLE_COMMENTS];
-    this.attachments = [...SAMPLE_ATTACHMENTS];
-    this.history = [...SAMPLE_HISTORY];
-    this.notifications = [...SAMPLE_NOTIFICATIONS];
+    this.profiles = [];
+    this.requests = [];
+    this.comments = [];
+    this.attachments = [];
+    this.history = [];
+    this.notifications = [];
     this.currentUser = null;
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     this.saveAll();
