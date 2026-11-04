@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corridor Hill Residence Portal - Executive Pitch Deck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .slide {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .slide.active {
+      display: flex;
+      opacity: 1;
+    }
+    .code-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between select-none overflow-hidden">
+
+  <!-- Top Global Bar -->
+  <header class="px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center font-bold text-white shadow-md shadow-sky-600/30">
+        CH
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-white tracking-tight">Corridor Hill Residence Facilities Portal</h1>
+        <p class="text-[11px] text-sky-400">Executive Owner Pitch & Commercial Proposal</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <button id="toggleNotesBtn" onclick="toggleNotes()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-700/60 text-xs font-semibold text-slate-300 transition-colors flex items-center gap-1.5">
+        <span>Speaker Notes</span>
+        <span id="notesBadge" class="w-2 h-2 rounded-full bg-slate-500"></span>
+      </button>
+      <span class="text-xs code-font text-slate-400 bg-slate-900 px-3 py-1 rounded-md border border-slate-800" id="slideIndicator">1 / 12</span>
+    </div>
+  </header>
+
+  <!-- Slide Display Container -->
+  <main class="flex-1 flex items-center justify-center p-4 sm:p-8 relative overflow-y-auto">
+
+    <!-- SLIDE 1: Title Hook -->
+    <div class="slide active w-full max-w-5xl flex-col justify-center items-start space-y-6">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-950/80 border border-sky-800/80 text-sky-400 text-xs font-semibold uppercase tracking-wider">
+        Enterprise Residence Operations & Asset Protection
+      </div>
+      <h2 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+        Transforming Student Residence Facilities Into a <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">High-Efficiency, High-Yield Asset</span>.
+      </h2>
+      <p class="text-base sm:text-xl text-slate-400 max-w-3xl leading-relaxed">
+        A centralized, 24/7 digital management ecosystem designed specifically for modern student housing — eliminating paper logs, halting contractor overbilling, preventing water/electrical disasters, and keeping occupancy at 100%.
+      </p>
+      <div class="grid grid-cols-3 gap-4 w-full pt-6 border-t border-slate-800">
+        <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <span class="text-2xl sm:text-3xl font-extrabold text-emerald-400 block">70%</span>
+          <span class="text-xs text-slate-400">Faster repair resolution turnaround</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <span class="text-2xl sm:text-3xl font-extrabold text-sky-400 block">100%</span>
+          <span class="text-xs text-slate-400">Proof-of-work photo accountability</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <span class="text-2xl sm:text-3xl font-extrabold text-amber-400 block">0</span>
+          <span class="text-xs text-slate-400">Lost complaints or dispute escalations</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: The Residence Owner's Problem -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-6">
+      <span class="text-xs font-bold text-red-400 uppercase tracking-widest">The Problem</span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        The Cost of Traditional Residence Maintenance is Bleeding Profits.
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <div class="p-5 rounded-xl bg-red-950/20 border border-red-900/40 space-y-2">
+          <h3 class="text-base font-bold text-red-300">1. Disastrous Unreported Leaks & Damages</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Students ignore small leaks or broken fixtures because reporting is inconvenient. By the time maintenance finds out, ceilings have collapsed or geysers have burst, costing <strong>R80k–R300k in emergency repairs</strong>.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-red-950/20 border border-red-900/40 space-y-2">
+          <h3 class="text-base font-bold text-red-300">2. Contractor Over-Invoicing & Phantom Work</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            External plumbing and electrical contractors bill for hours and parts with zero verifiable proof. Residence owners pay invoices blindly without knowing if the tenant's socket or tap was actually fixed.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-red-950/20 border border-red-900/40 space-y-2">
+          <h3 class="text-base font-bold text-red-300">3. WhatsApp & Paper Logbook Chaos</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Reception staff get drowned in conflicting WhatsApp messages, sticky notes, and student desk queues. Tickets get lost, staff burn out, and response times stretch to weeks.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-red-950/20 border border-red-900/40 space-y-2">
+          <h3 class="text-base font-bold text-red-300">4. Reputation Damage & NSFAS Accreditation Risk</h3>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Frustrated students take to TikTok, Twitter, and University Housing Committees. A single hygiene or electrical hazard report can trigger DHET audit flags or forfeit university leasing accreditation.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: The Complete Solution -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-6">
+      <span class="text-xs font-bold text-sky-400 uppercase tracking-widest">The Solution</span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        A Dedicated Three-Way Command Hub Built Exclusively for Student Housing.
+      </h2>
+      <p class="text-sm sm:text-base text-slate-300 max-w-3xl">
+        Not an off-the-shelf corporate ticketing form. A tailored residence platform connecting all three stakeholders in real time:
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div class="p-5 rounded-xl bg-slate-900 border border-sky-800/40 space-y-3">
+          <div class="w-10 h-10 rounded-lg bg-sky-600/20 text-sky-400 flex items-center justify-center font-bold text-lg">01</div>
+          <h3 class="text-base font-bold text-white">Student Tenant Portal</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Clean 60-second issue reporting, room/block auto-binding, photo uploads, live repair timeline, and student confirmation sign-off.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-amber-800/40 space-y-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center font-bold text-lg">02</div>
+          <h3 class="text-base font-bold text-white">Technician & Dispatch Console</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Smart triage by priority (Emergency/Urgent/Normal), technician job assignment, private internal staff notes, and proof-of-completion photo evidence.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-emerald-800/40 space-y-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-lg">03</div>
+          <h3 class="text-base font-bold text-white">Owner & Estate Intelligence</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Live building-by-building failure analytics, SLA performance metrics, contractor accountability, and immutable audit logs for insurance and legal compliance.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: Feature 1 - Student Experience -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-sky-400 uppercase tracking-widest">Component 1</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        The Student Experience: Zero Friction, Total Peace of Mind.
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <div class="space-y-4 text-xs sm:text-sm text-slate-300">
+          <div class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-sky-900 text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+            <p><strong>Sub-60 Second Submissions:</strong> Categorized by Plumbing, Electrical, Furniture, Structural, Appliance, or Hygiene with auto-detected Block and Room Number.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-sky-900 text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+            <p><strong>Photo Evidence Uploads:</strong> Students attach high-res photo proof so technicians arrive with the exact tools and replacement parts on the first visit.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-sky-900 text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+            <p><strong>Strict Privacy Isolation:</strong> Students can ONLY see tickets for their room. Other residents' private data remains strictly invisible.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-sky-900 text-sky-300 flex items-center justify-center text-xs font-bold shrink-0">✓</span>
+            <p><strong>In-App Notifications:</strong> Real-time alerts when a technician is dispatched or arrives, eliminating the "nobody showed up" argument.</p>
+          </div>
+        </div>
+        <div class="p-6 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs text-slate-400">Corridor Hill Student App View</span>
+            <span class="text-[11px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">Live Status: In Progress</span>
+          </div>
+          <div class="space-y-1">
+            <h4 class="text-sm font-bold text-white">CH-REQ-2026-004: Leaking Bathroom Pipe</h4>
+            <p class="text-xs text-slate-400">Block B (Pine Hall) · Room 204 · Assigned to: David Nkosi</p>
+          </div>
+          <div class="p-3 rounded bg-slate-950/80 text-xs text-slate-300 border border-slate-800/80">
+            <span class="text-[11px] text-sky-400 font-bold block mb-1">Technician Update · 10:15 AM</span>
+            "Replacement 15mm valve fitted. Running pressure test now before signing off."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: Feature 2 - Staff & Contractor Dispatch Engine -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-amber-400 uppercase tracking-widest">Component 2</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Staff & Dispatch Console: Military-Grade Maintenance Control.
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <div class="text-amber-400 font-bold text-sm">Automated Triage</div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Sort tickets across <strong>Block A through Block E</strong>. Filter instantly by Emergency, Urgent, or Normal priority so life-safety and flood hazards get answered within minutes.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <div class="text-sky-400 font-bold text-sm">Technician Work Allocation</div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Assign jobs directly to named specialists (e.g. David Nkosi for plumbing, Samir Patel for electrical). Track caseload per technician in real time.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <div class="text-emerald-400 font-bold text-sm">Private Internal Notes</div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Staff can record internal contractor quotes, procurement costs, or triage notes that are <strong>strictly hidden from student eyes</strong>.
+          </p>
+        </div>
+      </div>
+      <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-900/40 text-amber-200 text-xs sm:text-sm">
+        <strong>The Anti-Fraud Proof of Completion:</strong> Contractors cannot mark a ticket closed without uploading timestamped photo evidence of the finished repair. No more paying invoices for invisible work!
+      </div>
+    </div>
+
+    <!-- SLIDE 6: Feature 3 - The Reopen Safeguard -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">The Game-Changer</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        The "Closed Only When Fixed" Guarantee.
+      </h2>
+      <p class="text-sm sm:text-base text-slate-300 max-w-3xl">
+        In traditional residences, maintenance marks a ticket "done" while the student's geyser is still leaking. Our system introduces a <strong>two-key closing mechanism</strong>:
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+            <h4 class="text-sm font-bold text-white">Student Confirmation Sign-off</h4>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Once a technician marks a ticket Resolved, the student receives an in-app verification prompt: <em>"Has your issue been fully resolved to your satisfaction?"</em> If confirmed, the ticket is permanently closed.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+            <h4 class="text-sm font-bold text-white">Reopen Loop with Reason Logging</h4>
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            If the repair was botched, the student clicks <strong>"Reopen Request"</strong> and enters mandatory feedback. The ticket bounces straight back to "In Progress", notifying the Facilities Director instantly.
+          </p>
+        </div>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300">
+        <strong>Legal & Audit Protection:</strong> Every single status shift, comment, technician assignment, and student confirmation is saved to an <strong>immutable audit log</strong> that can be printed for board meetings, insurance claims, or DHET housing reviews.
+      </div>
+    </div>
+
+    <!-- SLIDE 7: Feature 4 - Executive Analytics -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-purple-400 uppercase tracking-widest">Executive View</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Analytics & Asset Health: Know Where Every Cent Goes.
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-xs text-slate-400 block mb-1">Mean Time to Repair</span>
+          <span class="text-2xl font-bold text-sky-400">3.8 Hours</span>
+          <span class="text-[10px] text-emerald-400 mt-1 block">↓ 68% from manual baseline</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-xs text-slate-400 block mb-1">First-Time Fix Rate</span>
+          <span class="text-2xl font-bold text-emerald-400">92.4%</span>
+          <span class="text-[10px] text-slate-400 mt-1 block">Verified by photo proof</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-xs text-slate-400 block mb-1">Most Problematic Block</span>
+          <span class="text-2xl font-bold text-amber-400">Block B</span>
+          <span class="text-[10px] text-slate-400 mt-1 block">42% plumbing age related</span>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-xs text-slate-400 block mb-1">Prevented Water Loss</span>
+          <span class="text-2xl font-bold text-purple-400">~R45,000</span>
+          <span class="text-[10px] text-emerald-400 mt-1 block">Monthly municipal bill savings</span>
+        </div>
+      </div>
+      <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+        <h4 class="text-sm font-bold text-white">How This Empowers Capital Expenditure (CAPEX) Planning:</h4>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Instead of guessing which building needs refurbishment, the Residence Owner has hard data: <em>"Block B's geysers have caused 18 incidents this term. Replacing the central boiler saves R120k annually in emergency plumber call-outs."</em>
+        </p>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: Mobile App & QR Room Tagging -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-sky-400 uppercase tracking-widest">Modern Technology</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Play Store Native App & Smart QR Room Door Tagging.
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="w-8 h-8 rounded bg-sky-900/50 text-sky-400 flex items-center justify-center font-bold text-xs">APP</div>
+          <h3 class="text-base font-bold text-white">Google Play Store & Mobile Deployment</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Students and staff install the branded app directly on their Android devices. Native push notifications wake technicians instantly during emergencies, even when the app is closed.
+          </p>
+          <ul class="text-xs text-slate-300 space-y-1.5 pt-2">
+            <li>• Offline-first design: works smoothly in basement corridors and poor Wi-Fi zones.</li>
+            <li>• Direct camera access for snap-and-upload fault photos.</li>
+          </ul>
+        </div>
+
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <div class="w-8 h-8 rounded bg-emerald-900/50 text-emerald-400 flex items-center justify-center font-bold text-xs">QR</div>
+          <h3 class="text-base font-bold text-white">Smart QR Room Tagging</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Every bedroom and communal facility receives a durable, branded QR sticker.
+          </p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            A resident simply points their phone camera at their door sticker: the app opens with their <strong>Building Block (e.g. Block B) and Room Number (e.g. 204) already pre-populated</strong>.
+          </p>
+          <div class="p-2.5 rounded bg-slate-950 text-[11px] text-emerald-400 border border-emerald-900/40">
+            Eliminates 100% of "wrong room number" or "which block are you in?" dispatch errors!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: Security, POPIA & Passcode Protection -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Compliance</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Enterprise Security & Full POPIA Data Privacy.
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <h4 class="text-sm font-bold text-white">Confidential Staff Passcode</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Staff registration is gated behind a confidential authorization code (<code class="text-sky-400">CORRIDOR-STAFF-5849</code>) with strict masking and anti-autofill hygiene. Students can never elevate their own privileges.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <h4 class="text-sm font-bold text-white">POPIA & Student Isolation</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Complies with the South African Protection of Personal Information Act. Resident phone numbers, student numbers, and personal details are strictly isolated from other students.
+          </p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <h4 class="text-sm font-bold text-white">Zero Plaintext Passwords</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            All user credentials utilize browser Web Crypto salted SHA-256 password hashing. Zero API keys, anon tokens, or database passwords are ever exposed on the client.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: Financial ROI Comparison -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-5">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">The Business Case</span>
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Why This Investment Yields a 300%+ Return for the Owner.
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs sm:text-sm border border-slate-800 rounded-xl overflow-hidden">
+          <thead class="bg-slate-900 text-slate-300">
+            <tr>
+              <th class="p-3.5 border-b border-slate-800">Operational Risk</th>
+              <th class="p-3.5 border-b border-slate-800 text-red-400">Traditional / Manual Cost</th>
+              <th class="p-3.5 border-b border-slate-800 text-emerald-400">With Corridor Hill Portal</th>
+              <th class="p-3.5 border-b border-slate-800 text-sky-400">Annual Net Value</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/80 bg-slate-950/40 text-slate-400">
+            <tr>
+              <td class="p-3.5 font-semibold text-white">Water & Electrical Leaks</td>
+              <td class="p-3.5 text-red-300">R150,000+ in damaged ceilings, walls & high utility bills</td>
+              <td class="p-3.5 text-emerald-300">Emergency reporting within minutes</td>
+              <td class="p-3.5 font-bold text-sky-300">Save ~R120,000 / year</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-semibold text-white">Contractor Over-Invoicing</td>
+              <td class="p-3.5 text-red-300">~15–20% disputed or unverified invoices</td>
+              <td class="p-3.5 text-emerald-300">Zero payout without photo proof & signoff</td>
+              <td class="p-3.5 font-bold text-sky-300">Save ~R80,000 / year</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-semibold text-white">Reception Staff Labor</td>
+              <td class="p-3.5 text-red-300">15–20 hours/week managing WhatsApp & logbooks</td>
+              <td class="p-3.5 text-emerald-300">100% automated logging and dispatch</td>
+              <td class="p-3.5 font-bold text-sky-300">Save ~R95,000 in labor hours</td>
+            </tr>
+            <tr>
+              <td class="p-3.5 font-semibold text-white">Accreditation & Retention</td>
+              <td class="p-3.5 text-red-300">Risk of NSFAS/University lease de-accreditation</td>
+              <td class="p-3.5 text-emerald-300">Verifiable DHET compliance audit logs</td>
+              <td class="p-3.5 font-bold text-sky-300">Protects Millions in lease income</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 italic">
+        Conservative estimated financial benefit to an average 400–800 bed student residence: <strong>R295,000+ saved annually in operational losses alone.</strong>
+      </p>
+    </div>
+
+    <!-- SLIDE 11: The Commercial Package (R500k All-Inclusive) -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-6">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-sky-400 uppercase tracking-widest">Commercial Proposal</span>
+        <span class="text-xs px-3 py-1 bg-emerald-950 text-emerald-300 rounded-full border border-emerald-800 font-bold">Turnkey 12-Month Enterprise Solution</span>
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        Complete Package: R500,000 (Inclusive of 12 Months Support & Maintenance).
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <h3 class="text-base font-bold text-sky-400">1. Upfront Deployment & Rollout (R320,000)</h3>
+          <ul class="text-xs sm:text-sm text-slate-300 space-y-2">
+            <li>✔ Full IP & customized branding for your residence</li>
+            <li>✔ Google Play Store App packaging & submission</li>
+            <li>✔ Building & room schema configuration (all blocks)</li>
+            <li>✔ Print-ready QR code room asset generation</li>
+            <li>✔ On-site staff and technician onboarding & training</li>
+          </ul>
+        </div>
+
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+          <h3 class="text-base font-bold text-emerald-400">2. 12-Month Managed Maintenance SLA (R180,000)</h3>
+          <ul class="text-xs sm:text-sm text-slate-300 space-y-2">
+            <li>✔ High-availability PostgreSQL cloud database & backups</li>
+            <li>✔ 24/7 critical system uptime monitoring</li>
+            <li>✔ Monthly OS & Play Store compliance updates</li>
+            <li>✔ 10 hours/month operational tweaks & room changes</li>
+            <li>✔ Monthly Executive Asset & SLA PDF report for the board</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+        <div>
+          <span class="font-bold text-white block text-sm">Flexible Milestone Terms:</span>
+          <span class="text-slate-400">R160k upon signing · R160k upon Play Store Go-Live · R15k/month for 12 months</span>
+        </div>
+        <span class="text-emerald-400 font-bold text-sm bg-emerald-950/80 px-3 py-1.5 rounded-lg border border-emerald-800">
+          Zero unexpected IT costs
+        </span>
+      </div>
+    </div>
+
+    <!-- SLIDE 12: Next Steps & Go-Live Timeline -->
+    <div class="slide w-full max-w-5xl flex-col justify-center space-y-6">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Execution</span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+        4-Week Fast-Track Deployment Schedule.
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <span class="text-xs font-mono text-sky-400 font-bold block">WEEK 1</span>
+          <h4 class="text-sm font-bold text-white">Residence Audit</h4>
+          <p class="text-xs text-slate-400">Map all rooms, blocks, technician contacts, and custom branding assets.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <span class="text-xs font-mono text-sky-400 font-bold block">WEEK 2</span>
+          <h4 class="text-sm font-bold text-white">App Store & QR</h4>
+          <p class="text-xs text-slate-400">Package Google Play Store app; print room door QR asset stickers.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <span class="text-xs font-mono text-sky-400 font-bold block">WEEK 3</span>
+          <h4 class="text-sm font-bold text-white">Staff Training</h4>
+          <p class="text-xs text-slate-400">Hands-on technician and front desk triage training workshops.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+          <span class="text-xs font-mono text-emerald-400 font-bold block">WEEK 4</span>
+          <h4 class="text-sm font-bold text-white">Campus Go-Live</h4>
+          <p class="text-xs text-slate-400">Student launch, live ticket processing, and 24/7 SLA activation.</p>
+        </div>
+      </div>
+      <div class="p-6 rounded-xl bg-gradient-to-r from-sky-950 via-slate-900 to-emerald-950 border border-sky-800/60 text-center space-y-3">
+        <h3 class="text-lg font-bold text-white">Ready to Modernize Corridor Hill Student Residence?</h3>
+        <p class="text-xs text-slate-300 max-w-xl mx-auto">
+          Sign the pilot agreement this week, and we will have your staff trained and your Google Play Store app submitted before next month's intake.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Speaker Notes Drawer (Toggled by Button or 'S' key) -->
+  <aside id="speakerNotesDrawer" class="hidden border-t border-slate-800 bg-slate-900/95 p-4 z-30 transition-all">
+    <div class="max-w-5xl mx-auto">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <span>🎙️ Presenter Script & Selling Talking Points</span>
+        </span>
+        <span class="text-[11px] text-slate-400">Press 'S' or click button to hide</span>
+      </div>
+      <p id="speakerNotesText" class="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
+        <!-- Dynamically updated -->
+      </p>
+    </div>
+  </aside>
+
+  <!-- Bottom Navigation Bar -->
+  <footer class="px-6 py-3 border-t border-slate-800 bg-slate-900/60 backdrop-blur-md flex items-center justify-between z-20">
+    <div class="text-xs text-slate-400 hidden sm:block">
+      Use <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">←</kbd> and <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">→</kbd> to navigate · <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">S</kbd> for notes
+    </div>
+
+    <div class="flex items-center gap-3 ml-auto">
+      <button onclick="prevSlide()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 transition-colors flex items-center gap-1">
+        <span>← Previous</span>
+      </button>
+      <button onclick="nextSlide()" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-md shadow-sky-600/30">
+        <span>Next Slide →</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    const indicator = document.getElementById('slideIndicator');
+    const notesText = document.getElementById('speakerNotesText');
+    const notesDrawer = document.getElementById('speakerNotesDrawer');
+    const notesBadge = document.getElementById('notesBadge');
+
+    const speakerNotes = [
+      // Slide 1
+      "WELCOME & HOOK: 'Good morning/afternoon. Today we are presenting a custom technology solution specifically engineered for student residence owners. As you know, running a multi-block residence isn't just about collecting rent—it's about protecting your physical infrastructure from catastrophic leaks, managing contractor costs, and keeping student satisfaction high enough to secure annual accreditations.'",
+      
+      // Slide 2
+      "THE PAIN POINTS: 'Let's be direct about the current reality. In most residences, reporting maintenance is broken. A student notices a damp ceiling in Block B on Friday, but doesn't report it because reception is closed or WhatsApp messages get ignored. By Monday morning, you have a collapsed ceiling board and a R120,000 emergency repair bill. Add to that contractors who charge for 3 hours of plumbing when they only tightened a bolt. Our system eliminates this entire bleed.'",
+      
+      // Slide 3
+      "THE THREE-WAY SOLUTION: 'This is not just another contact form. It connects all three sides of your operation: your students, your maintenance technicians, and your executive desk. Everyone sees exactly what they need to see, with complete accountability at every step.'",
+      
+      // Slide 4
+      "STUDENT PORTAL DEMO: 'Notice how simple this is for a student. In under 60 seconds, they select their problem, take a photo on their phone, and submit. They don't have to fill in their details again because the system already knows their block and room. And critically, they can ONLY see their own tickets—so private student information is 100% POPIA compliant.'",
+      
+      // Slide 5
+      "STAFF CONSOLE: 'Now look at your facilities manager's screen. Instead of 40 WhatsApp messages, they see a clean queue sorted by urgency. They can assign David Nkosi to plumbing, Samir Patel to electrical. Staff can write private internal memos about costs or part numbers that students can never see. And contractors MUST upload a photo of the completed job before they can claim it is fixed.'",
+      
+      // Slide 6
+      "THE REOPEN LOOP: 'This is the feature residence owners love most. A technician cannot unilaterally mark a job done and leave. The student receives an alert and must confirm the repair. If the pipe is still dripping, the student clicks Reopen, and it alerts management immediately. You will never again pay a contractor for a half-finished job.'",
+      
+      // Slide 7
+      "ANALYTICS: 'As an owner, you get an executive dashboard. You can see at a glance: Block B has had 18 plumbing calls this term. That tells you the pipe infrastructure in Block B needs planned replacement, rather than paying emergency call-out fees every single weekend.'",
+      
+      // Slide 8
+      "MOBILE APP & QR CODES: 'We don't just give you a website. We package this for the Google Play Store so students and technicians have a native app on their phones. Even better, we generate custom QR stickers for every single bedroom door. A student scans their door sticker, and the app instantly knows their exact room.'",
+      
+      // Slide 9
+      "SECURITY & COMPLIANCE: 'Security was built from the ground up. Passwords are encrypted with salted SHA-256 hashes. Staff registration is protected with a confidential security code so students cannot hack into staff privileges. All data stays private under South African POPIA regulations.'",
+      
+      // Slide 10
+      "ROI JUSTIFICATION: 'Let's look at the numbers. On a 400 to 800 bed residence, preventable water damage, contractor invoice disputes, and reception admin time easily cost over R295,000 per year. This platform pays for itself within the first 12 months.'",
+      
+      // Slide 11
+      "THE R500K PACKAGE: 'Our commercial proposal is an all-inclusive R500,000 package for the entire year. That includes R320,000 for the full platform build, Play Store app, and QR codes, PLUS R180,000 covering 12 full months of 24/7 database hosting, security backups, and support at R15,000 per month. No hidden IT costs, no unexpected contractor invoices.'",
+      
+      // Slide 12
+      "CLOSING THE DEAL: 'We can have your residence audited next week, your staff trained in 3 weeks, and your Play Store app live for next month's student intake. Let's sign the agreement today so we can begin the room mapping immediately.'"
+    ];
+
+    function showSlide(index) {
+      slides[currentSlide].classList.remove('active');
+      currentSlide = (index + totalSlides) % totalSlides;
+      slides[currentSlide].classList.add('active');
+      indicator.textContent = `${currentSlide + 1} / ${totalSlides}`;
+      notesText.textContent = speakerNotes[currentSlide];
+    }
+
+    function nextSlide() {
+      showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      showSlide(currentSlide - 1);
+    }
+
+    function toggleNotes() {
+      notesDrawer.classList.toggle('hidden');
+      const isOpen = !notesDrawer.classList.contains('hidden');
+      notesBadge.classList.toggle('bg-amber-400', isOpen);
+      notesBadge.classList.toggle('bg-slate-500', !isOpen);
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key.toLowerCase() === 's') {
+        toggleNotes();
+      }
+    });
+
+    // Initialize notes text
+    notesText.textContent = speakerNotes[0];
+  </script>
+</body>
+</html>

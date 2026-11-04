@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background with Safe Padding for Maskable Icons -->
+  <rect width="512" height="512" rx="112" fill="url(#grad)" />
+  <!-- Central Emblem inside Safe Zone (80% circle) -->
+  <g transform="translate(96, 96)" filter="url(#shadow)">
+    <!-- Shield / Building Silhouette -->
+    <path d="M160 20 L280 80 L280 220 Q280 290 160 330 Q40 290 40 220 L40 80 Z" fill="#0369a1" stroke="#38bdf8" stroke-width="8" stroke-linejoin="round"/>
+    <!-- Residence Facade / Windows -->
+    <rect x="90" y="110" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+    <rect x="143" y="110" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+    <rect x="196" y="110" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+    
+    <rect x="90" y="174" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+    <rect x="143" y="174" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+    <rect x="196" y="174" width="34" height="44" rx="4" fill="#ffffff" opacity="0.95"/>
+
+    <!-- Arch Entrance -->
+    <path d="M136 290 L136 242 Q136 230 160 230 Q184 230 184 242 L184 290 Z" fill="#fbbf24"/>
+    
+    <!-- Maintenance Wrench Emblem -->
+    <circle cx="250" cy="230" r="38" fill="#0f172a" stroke="#38bdf8" stroke-width="6"/>
+    <path d="M242 216 L248 222 L234 236 L240 242 L254 228 L260 234 L264 226 L250 212 Z" fill="#38bdf8"/>
+  </g>
+</svg>

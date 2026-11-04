@@ -12,9 +12,11 @@ import {
   ShieldCheck, 
   GraduationCap,
   Menu,
-  X
+  X,
+  Presentation
 } from 'lucide-react';
 import { NotificationModal } from './NotificationModal';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   currentUser: Profile;
@@ -23,6 +25,7 @@ interface HeaderProps {
   onOpenNewRequestModal?: () => void;
   onOpenSupabaseModal: () => void;
   onSelectRequest: (requestId: string) => void;
+  onOpenPitchDeck?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewRequestModal,
   onOpenSupabaseModal,
   onSelectRequest,
+  onOpenPitchDeck,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -170,7 +174,22 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Zone 3: Actions, Notifications & Account */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* PWA Install Button */}
+            <PWAInstallButton variant="header" />
+
+            {/* Pitch Deck / Presentation Button */}
+            {onOpenPitchDeck && (
+              <button
+                onClick={onOpenPitchDeck}
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-900 text-amber-300 hover:bg-slate-800 transition-colors border border-slate-700 shadow-2xs"
+                title="Open Residence Owner Pitch Deck & Commercial Proposal"
+              >
+                <Presentation className="w-3.5 h-3.5 text-amber-400" />
+                <span>Pitch Deck</span>
+              </button>
+            )}
+
             {/* Notification Bell */}
             <button
               onClick={() => setShowNotifications(true)}
@@ -348,6 +367,19 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}>
                     {isSupabaseLive ? 'Connected' : 'Local'}
                   </span>
+                </button>
+              )}
+
+              {onOpenPitchDeck && (
+                <button
+                  onClick={() => {
+                    onOpenPitchDeck();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 bg-slate-900 text-amber-300 border border-slate-800"
+                >
+                  <Presentation className="w-4 h-4 text-amber-400" />
+                  <span>Executive Pitch Deck & Proposal</span>
                 </button>
               )}
             </div>

@@ -18,6 +18,8 @@ import { StaffAnalytics } from './components/staff/StaffAnalytics';
 import { StaffTeam } from './components/staff/StaffTeam';
 import { SupabaseModal } from './components/database/SupabaseModal';
 import { NotificationToast } from './components/common/NotificationToast';
+import { PitchDeckModal } from './components/presentation/PitchDeckModal';
+import { OfflineIndicator } from './components/common/OfflineIndicator';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<Profile | null>(db.getCurrentUser());
@@ -25,6 +27,7 @@ export default function App() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isPitchDeckOpen, setIsPitchDeckOpen] = useState(false);
   const [, setTick] = useState(0);
 
   // Subscribe to DB changes
@@ -59,12 +62,20 @@ export default function App() {
   // If not logged in, show login page
   if (!currentUser) {
     return (
-      <LoginForm
-        onLoginSuccess={() => {
-          const user = db.getCurrentUser();
-          setCurrentUser(user);
-        }}
-      />
+      <>
+        <LoginForm
+          onLoginSuccess={() => {
+            const user = db.getCurrentUser();
+            setCurrentUser(user);
+          }}
+          onOpenPitchDeck={() => setIsPitchDeckOpen(true)}
+        />
+        <PitchDeckModal
+          isOpen={isPitchDeckOpen}
+          onClose={() => setIsPitchDeckOpen(false)}
+        />
+        <OfflineIndicator />
+      </>
     );
   }
 
@@ -84,6 +95,7 @@ export default function App() {
         onOpenNewRequestModal={() => setIsNewRequestModalOpen(true)}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onSelectRequest={handleSelectRequest}
+        onOpenPitchDeck={() => setIsPitchDeckOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -158,6 +170,15 @@ export default function App() {
         />
       )}
 
+      {/* Residence Owner Pitch Deck & Commercial Proposal Modal */}
+      <PitchDeckModal
+        isOpen={isPitchDeckOpen}
+        onClose={() => setIsPitchDeckOpen(false)}
+      />
+
+      {/* Offline Status Toast */}
+      <OfflineIndicator />
+
       {/* Institutional Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
@@ -168,6 +189,13 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsPitchDeckOpen(true)}
+              className="hover:text-amber-600 font-medium transition-colors"
+            >
+              Owner Pitch Deck (R500k)
+            </button>
+            <span>·</span>
             {isStaff && (
               <>
                 <button

@@ -18,11 +18,14 @@ import {
   KeyRound,
   Home,
   Phone,
-  FileBadge
+  FileBadge,
+  Presentation
 } from 'lucide-react';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
+  onOpenPitchDeck?: () => void;
 }
 
 type AuthMode = 'sign_in' | 'register' | 'forgot_password';
@@ -42,6 +45,7 @@ const isSupabaseOrKeyString = (str: string): boolean => {
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
+  onOpenPitchDeck,
 }) => {
   const [roleTab, setRoleTab] = useState<'student' | 'staff'>('student');
   const [authMode, setAuthMode] = useState<AuthMode>('sign_in');
@@ -199,6 +203,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenPitchDeck && (
+            <button
+              onClick={onOpenPitchDeck}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-950/80 hover:bg-amber-900/90 px-3 py-1.5 rounded-md border border-amber-600/70 transition-colors shadow-2xs"
+              title="Launch Residence Owner Pitch Deck & Proposal"
+            >
+              <Presentation className="w-4 h-4 text-amber-400" />
+              <span>Owner Pitch Deck</span>
+            </button>
+          )}
+
           <span className="inline-flex items-center gap-1.5 text-xs text-sky-200 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Residence Security Active</span>
@@ -207,7 +222,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       </header>
 
       {/* Main Login Card Area */}
-      <div className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 my-2">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 sm:p-6 my-2">
+        <div className="w-full max-w-lg mb-3">
+          <PWAInstallButton variant="banner" />
+        </div>
+
         <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
           
           {/* Card Header */}
@@ -670,6 +689,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             )}
           </div>
         </div>
+
+        {onOpenPitchDeck && (
+          <div className="mt-3 text-center">
+            <button
+              onClick={onOpenPitchDeck}
+              className="text-xs text-sky-200 hover:text-white underline underline-offset-2 flex items-center justify-center gap-1.5 mx-auto transition-colors"
+            >
+              <Presentation className="w-3.5 h-3.5 text-amber-400" />
+              <span>Meeting with residence owner? Open Executive Pitch Deck (R500k Proposal) &rarr;</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
