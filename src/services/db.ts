@@ -96,8 +96,23 @@ class DatabaseService {
       const storedCurrentUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
       if (storedCurrentUserId) {
         this.currentUser = this.profiles.find((p) => p.id === storedCurrentUserId) || null;
-      } else {
-        this.currentUser = null;
+      }
+
+      // If currentUser not yet resolved from profiles, rehydrate from stored auth session
+      if (!this.currentUser) {
+        try {
+          const storedSession = localStorage.getItem('chm_auth_session_prod_v2');
+          if (storedSession) {
+            const session = JSON.parse(storedSession);
+            if (session && session.user && (!session.expiresAt || session.expiresAt > Date.now())) {
+              this.currentUser = session.user;
+              if (!this.profiles.some((p) => p.id === session.user.id)) {
+                this.profiles.push(session.user);
+              }
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, session.user.id);
+            }
+          }
+        } catch (_) {}
       }
 
       this.saveAll();
@@ -187,7 +202,7 @@ class DatabaseService {
     });
   }
 
-  private saveAll() {
+  public saveAll() {
     try {
       localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(this.profiles));
       localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(this.requests));
@@ -268,6 +283,20 @@ class DatabaseService {
   // --- AUTHENTICATION & PROFILES ---
 
   public getCurrentUser(): Profile | null {
+    if (!this.currentUser) {
+      try {
+        const storedSession = localStorage.getItem('chm_auth_session_prod_v2');
+        if (storedSession) {
+          const session = JSON.parse(storedSession);
+          if (session && session.user && (!session.expiresAt || session.expiresAt > Date.now())) {
+            this.currentUser = session.user;
+            if (!this.profiles.some((p) => p.id === session.user.id)) {
+              this.profiles.push(session.user);
+            }
+          }
+        }
+      } catch (_) {}
+    }
     return this.currentUser;
   }
 
@@ -293,6 +322,9 @@ class DatabaseService {
   public logout() {
     this.currentUser = null;
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem('chm_auth_session_prod_v2');
+    localStorage.removeItem('chm_active_tab_v2');
+    localStorage.removeItem('chm_selected_req_v2');
     this.notify();
   }
 

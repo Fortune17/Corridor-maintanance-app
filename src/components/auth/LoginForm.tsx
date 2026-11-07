@@ -18,14 +18,12 @@ import {
   KeyRound,
   Home,
   Phone,
-  FileBadge,
-  Presentation
+  FileBadge
 } from 'lucide-react';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
-  onOpenPitchDeck?: () => void;
 }
 
 type AuthMode = 'sign_in' | 'register' | 'forgot_password';
@@ -45,7 +43,6 @@ const isSupabaseOrKeyString = (str: string): boolean => {
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
-  onOpenPitchDeck,
 }) => {
   const [roleTab, setRoleTab] = useState<'student' | 'staff'>('student');
   const [authMode, setAuthMode] = useState<AuthMode>('sign_in');
@@ -202,21 +199,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {onOpenPitchDeck && (
-            <button
-              onClick={onOpenPitchDeck}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-950/80 hover:bg-amber-900/90 px-3 py-1.5 rounded-md border border-amber-600/70 transition-colors shadow-2xs"
-              title="Launch Residence Owner Pitch Deck & Proposal"
-            >
-              <Presentation className="w-4 h-4 text-amber-400" />
-              <span>Owner Pitch Deck</span>
-            </button>
-          )}
-
-          <span className="inline-flex items-center gap-1.5 text-xs text-sky-200 bg-slate-800/80 px-3 py-1.5 rounded-md border border-slate-700">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Residence Security Active</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 text-xs text-sky-200 bg-slate-800/80 px-2 sm:px-3 py-1.5 rounded-md border border-slate-700 shrink-0">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span className="hidden sm:inline">Residence Security Active</span>
+            <span className="sm:hidden">Secure</span>
           </span>
         </div>
       </header>
@@ -689,18 +676,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             )}
           </div>
         </div>
-
-        {onOpenPitchDeck && (
-          <div className="mt-3 text-center">
-            <button
-              onClick={onOpenPitchDeck}
-              className="text-xs text-sky-200 hover:text-white underline underline-offset-2 flex items-center justify-center gap-1.5 mx-auto transition-colors"
-            >
-              <Presentation className="w-3.5 h-3.5 text-amber-400" />
-              <span>Meeting with residence owner? Open Executive Pitch Deck (R500k Proposal) &rarr;</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Footer */}

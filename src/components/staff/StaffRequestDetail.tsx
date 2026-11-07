@@ -57,18 +57,28 @@ export const StaffRequestDetail: React.FC<StaffRequestDetailProps> = ({
   const [proofFileName, setProofFileName] = useState('');
   const [proofFileData, setProofFileData] = useState('');
 
+  // Action feedback message state (replaces window.alert)
+  const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   const comments = db.getComments(request.id);
   const attachments = db.getAttachments(request.id);
   const history = db.getHistory(request.id);
+
+  const setFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setActionFeedback({ message, type });
+    setTimeout(() => {
+      setActionFeedback((curr) => (curr?.message === message ? null : curr));
+    }, 4000);
+  };
 
   const handleAssignTech = () => {
     if (!selectedTech) return;
     try {
       db.assignTechnician(request.id, selectedTech);
-      alert('Technician assigned successfully.');
+      setFeedback('Technician assigned successfully.');
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to assign technician');
+      setFeedback(err.message || 'Failed to assign technician', 'error');
     }
   };
 
@@ -80,21 +90,21 @@ export const StaffRequestDetail: React.FC<StaffRequestDetailProps> = ({
         work_performed: workPerformed,
         estimated_completion: estimatedCompletion ? new Date(estimatedCompletion).toISOString() : undefined,
       });
-      alert(`Request status updated to ${selectedStatus}.`);
+      setFeedback(`Request status updated to ${selectedStatus}.`);
       setStatusNote('');
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      setFeedback(err.message || 'Failed to update status', 'error');
     }
   };
 
   const handleUpdatePriority = () => {
     try {
       db.updatePriority(request.id, selectedPriority);
-      alert(`Priority updated to ${selectedPriority}`);
+      setFeedback(`Priority updated to ${selectedPriority}`);
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Failed to update priority');
+      setFeedback(err.message || 'Failed to update priority', 'error');
     }
   };
 
@@ -108,10 +118,11 @@ export const StaffRequestDetail: React.FC<StaffRequestDetailProps> = ({
         db.addComment(request.id, commentText, commentVisibility);
         setCommentText('');
         setIsSubmittingComment(false);
+        setFeedback('Comment recorded successfully.');
         onRefresh();
       } catch (err: any) {
         setIsSubmittingComment(false);
-        alert(err.message || 'Failed to add comment');
+        setFeedback(err.message || 'Failed to add comment', 'error');
       }
     }, 150);
   };
@@ -142,14 +153,41 @@ export const StaffRequestDetail: React.FC<StaffRequestDetailProps> = ({
       setProofFileData('');
       setProofFileName('');
       setUploadProofModalOpen(false);
+      setFeedback('Completion proof photo uploaded successfully.');
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Upload failed');
+      setFeedback(err.message || 'Upload failed', 'error');
     }
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      {/* Action Feedback Banner */}
+      {actionFeedback && (
+        <div
+          className={`p-3 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 shadow-xs animate-in fade-in slide-in-from-top-2 ${
+            actionFeedback.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {actionFeedback.type === 'error' ? (
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
+            <span>{actionFeedback.message}</span>
+          </div>
+          <button
+            onClick={() => setActionFeedback(null)}
+            className="text-slate-400 hover:text-slate-700 p-1"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
         <div className="flex items-center gap-3">

@@ -77,7 +77,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
 
       // Validate size (< 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert(`File ${file.name} is larger than 5MB. Please upload a smaller image.`);
+        setErrors((prev) => ({ ...prev, attachments: `File "${file.name}" is larger than 5MB. Please choose a smaller image.` }));
         continue;
       }
 

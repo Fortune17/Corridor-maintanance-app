@@ -360,9 +360,93 @@ export const StaffRequestTable: React.FC<StaffRequestTableProps> = ({
         )}
       </div>
 
-      {/* Main High-Density Table */}
+      {/* Main High-Density Table & Mobile Responsive Cards */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        
+        {/* Mobile / Compact Tablet Card View (block md:hidden) */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredRequests.length === 0 ? (
+            <div className="py-12 px-4 text-center text-slate-400 text-xs">
+              No requests match your current filters.
+            </div>
+          ) : (
+            filteredRequests.map((req) => {
+              const student = db.getStudentProfile(req.student_id);
+              const isOverdue =
+                req.status !== 'Resolved' &&
+                req.status !== 'Closed' &&
+                (Date.now() - new Date(req.created_at).getTime()) / (1000 * 60 * 60) > 48;
+
+              return (
+                <div
+                  key={req.id}
+                  onClick={() => onSelectRequest(req.id)}
+                  className={`p-4 transition-colors cursor-pointer active:bg-slate-50 space-y-3 ${
+                    isOverdue ? 'bg-red-50/30' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-bold text-sky-900 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                      {req.reference_number}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+                      {new Date(req.created_at).toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 leading-snug">
+                      {req.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {req.category}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={req.status} size="sm" />
+                    <PriorityBadge priority={req.priority} size="sm" />
+                    {isOverdue && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-800 px-1.5 py-0.5 rounded">
+                        Overdue
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Location</span>
+                      <span className="font-medium text-slate-800 block truncate">{req.room_number}</span>
+                      <span className="text-[11px] text-slate-500 truncate block">{req.building}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-semibold">Student / Tech</span>
+                      <span className="font-medium text-slate-800 block truncate">{student?.full_name || 'Resident'}</span>
+                      <span className="text-[11px] text-slate-500 truncate block">
+                        {req.assigned_to_name ? `Tech: ${req.assigned_to_name}` : 'Tech: Unassigned'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="w-full py-2 bg-slate-100 hover:bg-sky-50 text-sky-900 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-colors border border-slate-200 mt-2"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-sky-700" />
+                    <span>Manage Request Details &rarr;</span>
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Tablet & Desktop Data Table View (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">

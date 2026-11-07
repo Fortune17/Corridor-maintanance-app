@@ -42,11 +42,20 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
   const [isSendingComment, setIsSendingComment] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'history'>('details');
+  const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const comments = db.getComments(request.id);
   const attachments = db.getAttachments(request.id);
   const history = db.getHistory(request.id);
+
+  const setFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setActionFeedback({ message, type });
+    setTimeout(() => {
+      setActionFeedback((curr) => (curr?.message === message ? null : curr));
+    }, 4000);
+  };
 
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,29 +67,30 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         db.addComment(request.id, commentText, 'student_visible');
         setCommentText('');
         setIsSendingComment(false);
+        setFeedback('Comment posted successfully.');
         onRefresh();
       } catch (err: any) {
         setIsSendingComment(false);
-        alert(err.message || 'Failed to post comment');
+        setFeedback(err.message || 'Failed to post comment', 'error');
       }
     }, 200);
   };
 
   const handleConfirmResolved = () => {
-    if (window.confirm('Are you satisfied that this maintenance issue has been completely fixed in your room?')) {
-      try {
-        db.confirmResolved(request.id);
-        onRefresh();
-      } catch (err: any) {
-        alert(err.message || 'Could not confirm resolution');
-      }
+    try {
+      db.confirmResolved(request.id);
+      setShowConfirmModal(false);
+      setFeedback('Thank you for confirming resolution. Ticket is now closed.');
+      onRefresh();
+    } catch (err: any) {
+      setFeedback(err.message || 'Could not confirm resolution', 'error');
     }
   };
 
   const handleReopenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reopenReason.trim()) {
-      alert('Please explain why the issue is still unresolved.');
+      setFeedback('Please explain why the issue is still unresolved.', 'error');
       return;
     }
 
@@ -88,9 +98,10 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
       db.reopenRequest(request.id, reopenReason);
       setShowReopenModal(false);
       setReopenReason('');
+      setFeedback('Ticket reopened. Maintenance staff has been notified.');
       onRefresh();
     } catch (err: any) {
-      alert(err.message || 'Could not reopen request');
+      setFeedback(err.message || 'Could not reopen request', 'error');
     }
   };
 
@@ -101,6 +112,32 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
+      {/* Action Feedback Banner */}
+      {actionFeedback && (
+        <div
+          className={`p-3 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 shadow-xs animate-in fade-in slide-in-from-top-2 ${
+            actionFeedback.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {actionFeedback.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
+            <span>{actionFeedback.message}</span>
+          </div>
+          <button
+            onClick={() => setActionFeedback(null)}
+            className="text-slate-400 hover:text-slate-700 p-1"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Top Bar with back button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -130,7 +167,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
           {request.status === 'Resolved' && (
             <>
               <button
-                onClick={handleConfirmResolved}
+                onClick={() => setShowConfirmModal(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition-colors shadow-xs"
               >
                 <CheckCircle2 className="w-4 h-4" />
@@ -173,7 +210,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
             </div>
           </div>
           <button
-            onClick={handleConfirmResolved}
+            onClick={() => setShowConfirmModal(true)}
             className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-md whitespace-nowrap shadow-xs"
           >
             Confirm Issue Fixed
@@ -581,6 +618,46 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Confirm Issue Resolved
+                </h3>
+                <p className="text-xs text-slate-500">Room Maintenance Verification</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you satisfied that the repairs for <strong>{request.reference_number}</strong> have been completed satisfactorily in your room?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmResolved}
+                className="px-4 py-2 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition-colors shadow-xs"
+              >
+                Yes, Confirm & Close Ticket
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Profile } from '../../types/database';
 import { db } from '../../services/db';
 import { authService } from '../../services/authService';
-import { supabaseService } from '../../services/supabase';
 import { 
   Building2, 
   Bell, 
   LogOut, 
-  Database, 
   User, 
   ShieldCheck, 
   GraduationCap,
@@ -23,7 +21,6 @@ interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenNewRequestModal?: () => void;
-  onOpenSupabaseModal: () => void;
   onSelectRequest: (requestId: string) => void;
   onOpenPitchDeck?: () => void;
 }
@@ -33,26 +30,18 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenNewRequestModal,
-  onOpenSupabaseModal,
   onSelectRequest,
   onOpenPitchDeck,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState(db.getNotifications());
-  const [isSupabaseLive, setIsSupabaseLive] = useState(supabaseService.getStatus().isConnected);
 
   useEffect(() => {
     const unsubDb = db.subscribe(() => {
       setNotifications(db.getNotifications());
     });
-    const unsubSupabase = supabaseService.subscribe(() => {
-      setIsSupabaseLive(supabaseService.getStatus().isConnected);
-    });
-    return () => {
-      unsubDb();
-      unsubSupabase();
-    };
+    return () => unsubDb();
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
@@ -155,22 +144,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </>
             )}
-
-            {isStaff && (
-              <button
-                onClick={onOpenSupabaseModal}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
-                  isSupabaseLive
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                }`}
-                title={isSupabaseLive ? 'Connected to live Supabase PostgreSQL project' : 'Open Supabase Database & Schema panel'}
-              >
-                <Database className={`w-3.5 h-3.5 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
-                <span className="whitespace-nowrap">{isSupabaseLive ? 'Supabase Live' : 'Supabase DB'}</span>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${isSupabaseLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              </button>
-            )}
           </nav>
 
           {/* Zone 3: Actions, Notifications & Account */}
@@ -178,8 +151,8 @@ export const Header: React.FC<HeaderProps> = ({
             {/* PWA Install Button */}
             <PWAInstallButton variant="header" />
 
-            {/* Pitch Deck / Presentation Button */}
-            {onOpenPitchDeck && (
+            {/* Pitch Deck / Presentation Button (Only for residence owners / students, hidden from staff) */}
+            {!isStaff && onOpenPitchDeck && (
               <button
                 onClick={onOpenPitchDeck}
                 className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-900 text-amber-300 hover:bg-slate-800 transition-colors border border-slate-700 shadow-2xs"
@@ -346,31 +319,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
 
-              {isStaff && (
-                <button
-                  onClick={() => {
-                    onOpenSupabaseModal();
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center justify-between border ${
-                    isSupabaseLive
-                      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                      : 'bg-slate-50 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Database className={`w-4 h-4 ${isSupabaseLive ? 'text-emerald-600' : 'text-slate-500'}`} />
-                    <span>Supabase Database & Tables</span>
-                  </div>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    isSupabaseLive ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {isSupabaseLive ? 'Connected' : 'Local'}
-                  </span>
-                </button>
-              )}
-
-              {onOpenPitchDeck && (
+              {!isStaff && onOpenPitchDeck && (
                 <button
                   onClick={() => {
                     onOpenPitchDeck();

@@ -40,6 +40,7 @@ export interface Profile {
   room_number?: string;
   building?: BuildingBlock;
   avatar_url?: string;
+  password?: string; // Account password saved in database
   created_at: string;
 }
 

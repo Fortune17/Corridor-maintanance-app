@@ -1,3 +1,8 @@
 node_modules
 dist
+dev-dist
 .env
+.env.local
+.aistudio
+.DS_Store
+*.local

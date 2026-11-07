@@ -11,6 +11,7 @@ export interface AuthSession {
 interface StoredCredential {
   email: string;
   passwordHash: string;
+  password?: string; // Plain password stored in database credentials
   role: UserRole;
   salt: string;
 }
@@ -65,20 +66,6 @@ class AuthService {
     } catch (e) {
       console.warn('Failed to save credentials to localStorage', e);
     }
-  }
-
-  // --- SUPABASE CONFIGURATION PROXY ---
-
-  public getSupabaseStatus(): { isConnected: boolean; url: string; hasKey: boolean } {
-    return supabaseService.getStatus();
-  }
-
-  public async setSupabaseConfig(url: string, anonKey: string): Promise<boolean> {
-    const success = supabaseService.configure(url, anonKey, true);
-    if (!success && url.trim()) {
-      throw new Error('Failed to configure Supabase with provided credentials.');
-    }
-    return true;
   }
 
   // --- REAL SIGN IN ---
@@ -164,10 +151,17 @@ class AuthService {
         student_number: cred.role === 'student' ? `CH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}` : undefined,
         building: cred.role === 'student' ? 'Block B (Pine Hall)' : undefined,
         room_number: cred.role === 'student' ? 'Room 201' : undefined,
+        password: password,
         created_at: new Date().toISOString(),
       };
       (db as any).profiles.push(profile);
+    } else {
+      profile.password = password;
     }
+
+    cred.password = password;
+    this.saveCredentials();
+    db.saveAll();
 
     this.saveSession(profile);
     db.setCurrentUser(profile.id);
@@ -246,6 +240,7 @@ class AuthService {
     this.credentials.set(cleanEmail, {
       email: cleanEmail,
       passwordHash,
+      password: params.password,
       role: params.role,
       salt,
     });
@@ -261,10 +256,12 @@ class AuthService {
       building: params.building,
       room_number: params.room_number?.trim(),
       phone_number: params.phone_number?.trim(),
+      password: params.password, // Persisted on database record
       created_at: new Date().toISOString(),
     };
 
     (db as any).profiles.push(newProfile);
+    db.saveAll();
     this.saveSession(newProfile);
     db.setCurrentUser(newProfile.id);
 
@@ -297,16 +294,31 @@ class AuthService {
     const salt = Math.random().toString(36).substring(2, 10);
     const passwordHash = await hashPassword(newPassword, salt);
     cred.passwordHash = passwordHash;
+    cred.password = newPassword;
     cred.salt = salt;
 
     this.credentials.set(cleanEmail, cred);
     this.saveCredentials();
+
+    // Update profile password in database
+    const profile = db.getAllProfiles().find((p) => p.email.toLowerCase() === cleanEmail);
+    if (profile) {
+      profile.password = newPassword;
+      db.saveAll();
+    }
 
     const supabase = supabaseService.getClient();
     if (supabase && supabaseService.getStatus().isConnected) {
       supabase.auth.updateUser({ password: newPassword }).catch((e) => {
         console.warn('Supabase remote password update notice:', e);
       });
+      supabase
+        .from('profiles')
+        .update({ password: newPassword })
+        .eq('email', cleanEmail)
+        .then(({ error }) => {
+          if (error) console.warn('Supabase profile password update notice:', error.message);
+        });
     }
 
     return true;
