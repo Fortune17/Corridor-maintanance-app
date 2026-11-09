@@ -90,6 +90,7 @@ class AuthService {
 
     this.saveSession(profile);
     db.setCurrentUser(profile);
+    await db.pullFromSupabase();
     return profile;
   }
 
@@ -147,6 +148,11 @@ class AuthService {
     });
 
     if (error) {
+      if (error.message.toLowerCase().includes('database error saving new user')) {
+        throw new Error(
+          'Database trigger error in Supabase: Please re-run the updated supabase_migration.sql script in your Supabase SQL Editor to fix the handle_new_user() trigger.'
+        );
+      }
       throw new Error(error.message);
     }
 
@@ -185,6 +191,7 @@ class AuthService {
 
     this.saveSession(newProfile);
     db.setCurrentUser(newProfile);
+    await db.pullFromSupabase();
     return newProfile;
   }
 
