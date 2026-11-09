@@ -227,14 +227,15 @@ class AuthService {
             },
           },
         });
+        if (error) {
+          throw new Error(error.message);
+        }
         if (data?.user?.id) {
           supabaseUserId = data.user.id;
         }
-        if (error) {
-          console.warn('Supabase remote sign up notice:', error.message);
-        }
       } catch (err: any) {
-        console.warn('Supabase remote sign up notice:', err.message);
+        console.error('Supabase Auth Sign Up error:', err);
+        throw new Error(err.message || 'Supabase authentication failed. Please check your credentials.');
       }
     }
 
@@ -276,14 +277,20 @@ class AuthService {
     this.saveSession(newProfile);
     db.setCurrentUser(newProfile.id);
 
-    // If Supabase is connected, also upsert profile into public.profiles
+    // If Supabase is connected, directly await upsert into public.profiles
     if (supabase && isSupabaseLive) {
-      supabase
-        .from('profiles')
-        .upsert([newProfile], { onConflict: 'email' })
-        .then(({ error }) => {
-          if (error) console.warn('Supabase profile sync notice:', error.message);
-        });
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert([newProfile], { onConflict: 'email' });
+        if (profileError) {
+          console.error('Supabase public.profiles upsert error:', profileError);
+          throw new Error(`Profile database error: ${profileError.message}`);
+        }
+      } catch (upsertErr: any) {
+        console.error('Failed to sync profile to Supabase:', upsertErr);
+        throw new Error(upsertErr.message || 'Failed to save profile to database.');
+      }
     }
 
     return newProfile;
