@@ -209,9 +209,10 @@ class AuthService {
     const isSupabaseLive = supabaseService.getStatus().isConnected;
 
     // 1. Supabase Auth Sign Up if connected
+    let supabaseUserId: string | null = null;
     if (supabase && isSupabaseLive) {
       try {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password: params.password,
           options: {
@@ -225,6 +226,9 @@ class AuthService {
             },
           },
         });
+        if (data?.user?.id) {
+          supabaseUserId = data.user.id;
+        }
         if (error) {
           console.warn('Supabase remote sign up notice:', error.message);
         }
@@ -247,8 +251,14 @@ class AuthService {
     this.saveCredentials();
 
     // 3. Create profile in database
+    const profileId =
+      supabaseUserId ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+
     const newProfile: Profile = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: profileId,
       full_name: params.full_name.trim(),
       email: cleanEmail,
       role: params.role,
@@ -265,11 +275,11 @@ class AuthService {
     this.saveSession(newProfile);
     db.setCurrentUser(newProfile.id);
 
-    // If Supabase is connected, also insert profile into public.profiles
+    // If Supabase is connected, also upsert profile into public.profiles
     if (supabase && isSupabaseLive) {
       supabase
         .from('profiles')
-        .insert([newProfile])
+        .upsert([newProfile], { onConflict: 'email' })
         .then(({ error }) => {
           if (error) console.warn('Supabase profile sync notice:', error.message);
         });

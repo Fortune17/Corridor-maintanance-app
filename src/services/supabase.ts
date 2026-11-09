@@ -28,11 +28,23 @@ class SupabaseService {
   }
 
   private init() {
-    // Purge any stored Supabase keys from localStorage
-    try {
-      localStorage.removeItem(SUPABASE_STORAGE_KEY);
-      localStorage.removeItem('supabase.auth.token');
-    } catch (_) {}
+    // 1. Check environment variables (provided in Vercel or environment)
+    const envUrl = (
+      (import.meta.env.VITE_SUPABASE_URL as string) ||
+      ((import.meta.env as any).SUPABASE_URL as string) ||
+      ''
+    ).trim();
+
+    const envKey = (
+      (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+      ((import.meta.env as any).SUPABASE_ANON_KEY as string) ||
+      ''
+    ).trim();
+
+    if (envUrl && envKey) {
+      this.configure(envUrl, envKey, false);
+      return;
+    }
 
     this.client = null;
     this.url = '';

@@ -26,6 +26,7 @@ create table if not exists public.profiles (
   full_name text not null,
   email text not null unique,
   role user_role not null default 'student',
+  password text,
   student_number text,
   phone_number text,
   room_number text,
@@ -33,6 +34,9 @@ create table if not exists public.profiles (
   avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure password column exists if table was previously created
+alter table public.profiles add column if not exists password text;
 
 -- 3. MAINTENANCE REQUESTS TABLE
 create table if not exists public.maintenance_requests (
