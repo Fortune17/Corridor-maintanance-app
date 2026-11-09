@@ -8,8 +8,6 @@ import {
   AppNotification,
 } from '../types/database';
 
-export const SUPABASE_STORAGE_KEY = 'chm_supabase_config_v1';
-
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
@@ -28,7 +26,7 @@ class SupabaseService {
   }
 
   private init() {
-    // 1. Check environment variables (provided in Vercel or environment)
+    // Read Supabase credentials injected by Vite / Vercel
     const envUrl = (
       (import.meta.env.VITE_SUPABASE_URL as string) ||
       ((import.meta.env as any).SUPABASE_URL as string) ||
@@ -42,7 +40,7 @@ class SupabaseService {
     ).trim();
 
     if (envUrl && envKey) {
-      this.configure(envUrl, envKey, false);
+      this.configure(envUrl, envKey);
       return;
     }
 
@@ -52,7 +50,7 @@ class SupabaseService {
     this.isConnected = false;
   }
 
-  public configure(url: string, anonKey: string, persist: boolean = true): boolean {
+  public configure(url: string, anonKey: string): boolean {
     const cleanUrl = url.trim();
     const cleanKey = anonKey.trim();
 
@@ -62,9 +60,6 @@ class SupabaseService {
       this.anonKey = '';
       this.isConnected = false;
       this.channelSubscribed = false;
-      if (persist) {
-        localStorage.removeItem(SUPABASE_STORAGE_KEY);
-      }
       this.notifyChange();
       return true;
     }
@@ -79,13 +74,6 @@ class SupabaseService {
         },
       });
       this.isConnected = true;
-
-      if (persist) {
-        localStorage.setItem(
-          SUPABASE_STORAGE_KEY,
-          JSON.stringify({ url: cleanUrl, anonKey: cleanKey })
-        );
-      }
 
       this.setupRealtimeSubscription();
       this.notifyChange();

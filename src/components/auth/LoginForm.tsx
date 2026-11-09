@@ -73,13 +73,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Aggressive cleanser to prevent browser autofill from inserting saved Supabase keys
+  // Sanitize inputs to prevent browser autofill from inserting saved credentials/keys
   useEffect(() => {
-    try {
-      localStorage.removeItem('chm_supabase_config_v1');
-      localStorage.removeItem('supabase.auth.token');
-    } catch (_) {}
-
     const sanitizeInputs = () => {
       setEmail((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
       setPassword((prev) => (isSupabaseOrKeyString(prev) ? '' : prev));
@@ -157,26 +152,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     }
   };
 
-  // Handle Real Password Reset
+  // Handle Password Reset via Supabase email link
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      await authService.resetPassword(resetEmail, newPassword);
+      await authService.resetPassword(resetEmail);
       setIsLoading(false);
       setResetSuccess(true);
-      setSuccessMessage('Your password has been successfully updated. You may now sign in with your new password.');
-      setTimeout(() => {
-        setEmail(resetEmail);
-        setPassword(newPassword);
-        setAuthMode('sign_in');
-        setResetSuccess(false);
-      }, 2000);
+      setSuccessMessage(`A password reset link has been sent to ${resetEmail}. Please check your email and follow the link to set a new password.`);
     } catch (err: any) {
       setIsLoading(false);
-      setError(err.message || 'Password reset failed.');
+      setError(err.message || 'Password reset failed. Please check your email address and try again.');
     }
   };
 
@@ -634,25 +623,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Enter New Password (min 6 characters)
-                  </label>
-                  <input
-                    type="password"
-                    name="pwd_reset_new_secret"
-                    autoComplete="new-password"
-                    value={isSupabaseOrKeyString(newPassword) ? '' : newPassword}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNewPassword(isSupabaseOrKeyString(val) ? '' : val);
-                    }}
-                    placeholder="New secure password"
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600"
-                    required
-                  />
-                </div>
-
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
@@ -666,10 +636,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || resetSuccess}
                     className="w-1/2 py-2 bg-sky-900 hover:bg-sky-800 text-white text-xs font-semibold rounded-md transition-colors"
                   >
-                    {isLoading ? 'Updating...' : 'Update Password'}
+                    {isLoading ? 'Sending...' : resetSuccess ? 'Email Sent ✓' : 'Send Reset Link'}
                   </button>
                 </div>
               </form>

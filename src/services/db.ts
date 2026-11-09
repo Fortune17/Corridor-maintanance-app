@@ -21,21 +21,28 @@ import {
 } from './sampleData';
 import { supabaseService } from './supabase';
 
-const STORAGE_KEYS = {
-  PROFILES: 'chm_prod_profiles_v2',
-  REQUESTS: 'chm_prod_requests_v2',
-  COMMENTS: 'chm_prod_comments_v2',
-  ATTACHMENTS: 'chm_prod_attachments_v2',
-  HISTORY: 'chm_prod_history_v2',
-  NOTIFICATIONS: 'chm_prod_notifications_v2',
-  CURRENT_USER_ID: 'chm_prod_current_user_id_v2',
-};
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function safePush(operation: any, label = 'Supabase operation') {
   if (operation && typeof operation.then === 'function') {
-    Promise.resolve(operation).catch((err: unknown) => {
-      console.warn(`[Supabase Async Sync] ${label}:`, err);
-    });
+    Promise.resolve(operation)
+      .then((res: any) => {
+        if (res && res.error) {
+          console.error(`[Supabase Error] ${label}:`, res.error);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error(`[Supabase Exception] ${label}:`, err);
+      });
   }
 }
 
@@ -58,7 +65,7 @@ class DatabaseService {
 
   private init() {
     try {
-      // Purge all legacy demo and test keys from previous iterations
+      // Purge all legacy localStorage database mock keys
       [
         'chm_profiles_v1',
         'chm_requests_v1',
@@ -69,56 +76,40 @@ class DatabaseService {
         'chm_current_user_id_v1',
         'chm_auth_credentials_v1',
         'chm_auth_session_v1',
+        'chm_prod_profiles_v2',
+        'chm_prod_requests_v2',
+        'chm_prod_comments_v2',
+        'chm_prod_attachments_v2',
+        'chm_prod_history_v2',
+        'chm_prod_notifications_v2',
+        'chm_prod_current_user_id_v2',
       ].forEach((k) => {
         try {
           localStorage.removeItem(k);
         } catch (_) {}
       });
 
-      const storedProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES);
-      this.profiles = storedProfiles ? JSON.parse(storedProfiles) : [];
+      this.profiles = [];
+      this.requests = [];
+      this.comments = [];
+      this.attachments = [];
+      this.history = [];
+      this.notifications = [];
+      this.currentUser = null;
 
-      const storedRequests = localStorage.getItem(STORAGE_KEYS.REQUESTS);
-      this.requests = storedRequests ? JSON.parse(storedRequests) : [];
-
-      const storedComments = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-      this.comments = storedComments ? JSON.parse(storedComments) : [];
-
-      const storedAttachments = localStorage.getItem(STORAGE_KEYS.ATTACHMENTS);
-      this.attachments = storedAttachments ? JSON.parse(storedAttachments) : [];
-
-      const storedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
-      this.history = storedHistory ? JSON.parse(storedHistory) : [];
-
-      const storedNotifications = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-      this.notifications = storedNotifications ? JSON.parse(storedNotifications) : [];
-
-      const storedCurrentUserId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-      if (storedCurrentUserId) {
-        this.currentUser = this.profiles.find((p) => p.id === storedCurrentUserId) || null;
-      }
-
-      // If currentUser not yet resolved from profiles, rehydrate from stored auth session
-      if (!this.currentUser) {
-        try {
-          const storedSession = localStorage.getItem('chm_auth_session_prod_v2');
-          if (storedSession) {
-            const session = JSON.parse(storedSession);
-            if (session && session.user && (!session.expiresAt || session.expiresAt > Date.now())) {
-              this.currentUser = session.user;
-              if (!this.profiles.some((p) => p.id === session.user.id)) {
-                this.profiles.push(session.user);
-              }
-              localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, session.user.id);
-            }
+      // Rehydrate active user from live auth session
+      try {
+        const storedSession = localStorage.getItem('chm_auth_session_live_v1');
+        if (storedSession) {
+          const session = JSON.parse(storedSession);
+          if (session && session.user && (!session.expiresAt || session.expiresAt > Date.now())) {
+            this.currentUser = session.user;
+            this.profiles.push(session.user);
           }
-        } catch (_) {}
-      }
-
-      this.saveAll();
+        }
+      } catch (_) {}
     } catch (e) {
-      console.error('Failed to initialize local DB, initializing clean state', e);
-      this.resetToDefaults();
+      console.error('Failed to initialize DB', e);
     }
   }
 
@@ -127,7 +118,7 @@ class DatabaseService {
       this.pullFromSupabase();
     });
 
-    // Initial check if Supabase is already configured
+    // Initial pull if Supabase is already configured at startup
     if (supabaseService.getStatus().isConnected) {
       this.pullFromSupabase();
     }
@@ -146,41 +137,46 @@ class DatabaseService {
       let changed = false;
 
       if (data.profiles && data.profiles.length > 0) {
-        // Merge profiles by id
+        // Merge profiles - keep current user's in-memory version authoritative
         const map = new Map<string, Profile>();
-        this.profiles.forEach((p) => map.set(p.id, p));
         data.profiles.forEach((p) => map.set(p.id, p));
+        this.profiles.forEach((p) => map.set(p.id, p)); // local overrides remote for same id
         this.profiles = Array.from(map.values());
+        // Re-hydrate currentUser from merged profiles
+        if (this.currentUser) {
+          const fresh = this.profiles.find((p) => p.id === this.currentUser!.id);
+          if (fresh) this.currentUser = fresh;
+        }
         changed = true;
       }
 
-      if (data.requests && data.requests.length > 0) {
-        this.requests = data.requests;
+      if (data.requests !== undefined) {
+        this.requests = data.requests || [];
         changed = true;
       }
 
-      if (data.comments && data.comments.length > 0) {
-        this.comments = data.comments;
+      if (data.comments !== undefined) {
+        this.comments = data.comments || [];
         changed = true;
       }
 
-      if (data.attachments && data.attachments.length > 0) {
-        this.attachments = data.attachments;
+      if (data.attachments !== undefined) {
+        this.attachments = data.attachments || [];
         changed = true;
       }
 
-      if (data.history && data.history.length > 0) {
-        this.history = data.history;
+      if (data.history !== undefined) {
+        this.history = data.history || [];
         changed = true;
       }
 
-      if (data.notifications && data.notifications.length > 0) {
-        this.notifications = data.notifications;
+      if (data.notifications !== undefined) {
+        this.notifications = data.notifications || [];
         changed = true;
       }
 
       if (changed) {
-        this.saveAll();
+        this.notify();
       }
       return true;
     } catch (e) {
@@ -203,19 +199,6 @@ class DatabaseService {
   }
 
   public saveAll() {
-    try {
-      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(this.profiles));
-      localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(this.requests));
-      localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(this.comments));
-      localStorage.setItem(STORAGE_KEYS.ATTACHMENTS, JSON.stringify(this.attachments));
-      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(this.history));
-      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(this.notifications));
-      if (this.currentUser) {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, this.currentUser.id);
-      }
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
     this.notify();
   }
 
@@ -240,7 +223,7 @@ class DatabaseService {
     message: string;
   }): AppNotification {
     const notif: AppNotification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: generateUUID(),
       user_id: item.user_id,
       request_id: item.request_id,
       title: item.title,
@@ -276,7 +259,6 @@ class DatabaseService {
     this.history = [];
     this.notifications = [];
     this.currentUser = null;
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     this.saveAll();
   }
 
@@ -285,7 +267,7 @@ class DatabaseService {
   public getCurrentUser(): Profile | null {
     if (!this.currentUser) {
       try {
-        const storedSession = localStorage.getItem('chm_auth_session_prod_v2');
+        const storedSession = localStorage.getItem('chm_auth_session_live_v1') || localStorage.getItem('chm_auth_session_prod_v2');
         if (storedSession) {
           const session = JSON.parse(storedSession);
           if (session && session.user && (!session.expiresAt || session.expiresAt > Date.now())) {
@@ -300,11 +282,22 @@ class DatabaseService {
     return this.currentUser;
   }
 
-  public setCurrentUser(userId: string): Profile | null {
-    const user = this.profiles.find((p) => p.id === userId);
+  public setCurrentUser(userOrId: string | Profile): Profile | null {
+    if (typeof userOrId === 'object' && userOrId !== null) {
+      this.currentUser = userOrId;
+      const idx = this.profiles.findIndex((p) => p.id === userOrId.id);
+      if (idx >= 0) {
+        this.profiles[idx] = userOrId;
+      } else {
+        this.profiles.push(userOrId);
+      }
+      this.notify();
+      return userOrId;
+    }
+
+    const user = this.profiles.find((p) => p.id === userOrId);
     if (user) {
       this.currentUser = user;
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
       this.notify();
       return user;
     }
@@ -321,10 +314,12 @@ class DatabaseService {
 
   public logout() {
     this.currentUser = null;
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-    localStorage.removeItem('chm_auth_session_prod_v2');
-    localStorage.removeItem('chm_active_tab_v2');
-    localStorage.removeItem('chm_selected_req_v2');
+    try {
+      localStorage.removeItem('chm_auth_session_live_v1');
+      localStorage.removeItem('chm_auth_session_prod_v2');
+      localStorage.removeItem('chm_active_tab_v2');
+      localStorage.removeItem('chm_selected_req_v2');
+    } catch (_) {}
     this.notify();
   }
 
@@ -388,7 +383,7 @@ class DatabaseService {
     const now = new Date().toISOString();
 
     const newReq: MaintenanceRequest = {
-      id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: generateUUID(),
       reference_number,
       student_id: this.currentUser.id,
       title: params.title.trim(),
@@ -408,7 +403,7 @@ class DatabaseService {
 
     // Record History Audit Trail
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: newReq.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -423,9 +418,9 @@ class DatabaseService {
     // Handle initial attachments
     const newAttachments: RequestAttachment[] = [];
     if (params.attachments && params.attachments.length > 0) {
-      params.attachments.forEach((att, idx) => {
+      params.attachments.forEach((att) => {
         const item: RequestAttachment = {
-          id: `att_${Date.now()}_${idx}`,
+          id: generateUUID(),
           request_id: newReq.id,
           uploaded_by: this.currentUser!.id,
           uploaded_by_name: this.currentUser!.full_name,
@@ -512,7 +507,7 @@ class DatabaseService {
 
     // Audit History Record
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -611,7 +606,7 @@ class DatabaseService {
 
     // History
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -679,7 +674,7 @@ class DatabaseService {
     req.updated_at = now;
 
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -727,7 +722,7 @@ class DatabaseService {
     req.updated_at = now;
 
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -794,7 +789,7 @@ class DatabaseService {
     req.updated_at = now;
 
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,
@@ -809,7 +804,7 @@ class DatabaseService {
 
     // Add automatic comment
     const reopenComment: RequestComment = {
-      id: `comm_${Date.now()}`,
+      id: generateUUID(),
       request_id: req.id,
       author_id: this.currentUser.id,
       author_name: this.currentUser.full_name,
@@ -896,7 +891,7 @@ class DatabaseService {
 
     const now = new Date().toISOString();
     const newComment: RequestComment = {
-      id: `comm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: generateUUID(),
       request_id: requestId,
       author_id: this.currentUser.id,
       author_name: this.currentUser.full_name,
@@ -979,7 +974,7 @@ class DatabaseService {
 
     const now = new Date().toISOString();
     const newAtt: RequestAttachment = {
-      id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: generateUUID(),
       request_id: requestId,
       uploaded_by: this.currentUser.id,
       uploaded_by_name: this.currentUser.full_name,
@@ -994,7 +989,7 @@ class DatabaseService {
     this.attachments.push(newAtt);
 
     const histRecord: RequestHistory = {
-      id: `hist_${Date.now()}`,
+      id: generateUUID(),
       request_id: requestId,
       actor_id: this.currentUser.id,
       actor_name: this.currentUser.full_name,

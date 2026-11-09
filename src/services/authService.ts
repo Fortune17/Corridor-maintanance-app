@@ -5,71 +5,30 @@ import { supabaseService } from './supabase';
 export interface AuthSession {
   token: string;
   user: Profile;
-  expiresAt: number; // timestamp
-}
-
-interface StoredCredential {
-  email: string;
-  passwordHash: string;
-  password?: string; // Plain password stored in database credentials
-  role: UserRole;
-  salt: string;
+  expiresAt: number;
 }
 
 const STORAGE_KEYS = {
-  CREDENTIALS: 'chm_auth_credentials_prod_v2',
-  SESSION: 'chm_auth_session_prod_v2',
+  SESSION: 'chm_auth_session_live_v1',
 };
 
-// Staff Authorization Passcode for registering new staff members (confidential)
+// Staff Authorization Passcode for registering new staff members
 export const STAFF_SECURITY_CODE = 'CORRIDOR-STAFF-5849';
 
-// Helper for SHA-256 password hashing with salt using browser Web Crypto API
-async function hashPassword(password: string, salt: string): Promise<string> {
-  const enc = new TextEncoder();
-  const data = enc.encode(`${salt}:${password}:chm_auth_pepper_2026`);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 class AuthService {
-  private credentials: Map<string, StoredCredential> = new Map();
-
   constructor() {
     this.init();
   }
 
-  private async init() {
-    // Purge legacy demo keys if present
+  private init() {
+    // Purge legacy mock credentials
     try {
+      localStorage.removeItem('chm_auth_credentials_prod_v2');
       localStorage.removeItem('chm_auth_credentials_v1');
-      localStorage.removeItem('chm_auth_session_v1');
-    } catch (_) {}
-
-    // Load stored production credentials
-    const storedCreds = localStorage.getItem(STORAGE_KEYS.CREDENTIALS);
-    if (storedCreds) {
-      try {
-        const list: StoredCredential[] = JSON.parse(storedCreds);
-        list.forEach((c) => this.credentials.set(c.email.toLowerCase(), c));
-      } catch (e) {
-        console.error('Failed to load credentials from storage', e);
-      }
-    }
+    } catch (_) { }
   }
 
-  private saveCredentials() {
-    try {
-      const arr = Array.from(this.credentials.values());
-      localStorage.setItem(STORAGE_KEYS.CREDENTIALS, JSON.stringify(arr));
-    } catch (e) {
-      console.warn('Failed to save credentials to localStorage', e);
-    }
-  }
-
-  // --- REAL SIGN IN ---
-
+  // --- REAL SUPABASE SIGN IN ---
   public async signIn(email: string, password: string, requiredRole?: 'student' | 'staff'): Promise<Profile> {
     const cleanEmail = email.trim().toLowerCase();
 
@@ -81,95 +40,60 @@ class AuthService {
     }
 
     const supabase = supabaseService.getClient();
-    const isSupabaseLive = supabaseService.getStatus().isConnected;
-
-    // 1. If live Supabase is connected, attempt Supabase Auth first
-    if (supabase && isSupabaseLive) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-        });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        if (data.user) {
-          // Fetch profile from supabase table or local db
-          let profile = db.getAllProfiles().find((p) => p.email.toLowerCase() === cleanEmail);
-          if (!profile) {
-            profile = {
-              id: data.user.id,
-              full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-              email: cleanEmail,
-              role: (data.user.user_metadata?.role as UserRole) || 'student',
-              student_number: data.user.user_metadata?.student_number,
-              building: data.user.user_metadata?.building,
-              room_number: data.user.user_metadata?.room_number,
-              created_at: new Date().toISOString(),
-            };
-          }
-
-          if (requiredRole && profile.role !== requiredRole) {
-            throw new Error(`This account has role '${profile.role}'. Please select the ${profile.role} login tab.`);
-          }
-
-          this.saveSession(profile);
-          db.setCurrentUser(profile.id);
-          return profile;
-        }
-      } catch (err: any) {
-        console.warn('Supabase Auth response notice:', err.message);
-        // Fall through to verify local credential if auth user not registered on cloud yet
-      }
+    if (!supabase) {
+      throw new Error(
+        'Database connection error: Supabase credentials are missing. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
+      );
     }
 
-    // 2. Local verified credentials authentication
-    const cred = this.credentials.get(cleanEmail);
-    if (!cred) {
-      throw new Error('No account found with this email. Please check your spelling or register a new account.');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error) {
+      throw new Error(error.message);
     }
 
-    if (requiredRole && cred.role !== requiredRole) {
-      throw new Error(`Account registered as '${cred.role}', not '${requiredRole}'. Please switch to the ${cred.role} login tab.`);
+    if (!data.user) {
+      throw new Error('Login failed: user not returned from Supabase.');
     }
 
-    const testHash = await hashPassword(password, cred.salt);
-    if (testHash !== cred.passwordHash) {
-      throw new Error('Invalid password. Please verify your credentials and try again.');
-    }
+    // Load full profile directly from Supabase public.profiles table
+    let profile: Profile | null = null;
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .maybeSingle();
 
-    // Password matches! Fetch or create profile
-    let profile = db.getAllProfiles().find((p) => p.email.toLowerCase() === cleanEmail);
-    if (!profile) {
-      profile = {
-        id: `user_${Date.now()}`,
-        full_name: cleanEmail.split('@')[0].replace('.', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-        email: cleanEmail,
-        role: cred.role,
-        student_number: cred.role === 'student' ? `CH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}` : undefined,
-        building: cred.role === 'student' ? 'Block B (Pine Hall)' : undefined,
-        room_number: cred.role === 'student' ? 'Room 201' : undefined,
-        password: password,
-        created_at: new Date().toISOString(),
-      };
-      (db as any).profiles.push(profile);
+    if (profileRow) {
+      profile = profileRow as Profile;
     } else {
-      profile.password = password;
+      profile = {
+        id: data.user.id,
+        full_name: data.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        role: (data.user.user_metadata?.role as UserRole) || 'student',
+        student_number: data.user.user_metadata?.student_number,
+        building: data.user.user_metadata?.building,
+        room_number: data.user.user_metadata?.room_number,
+        phone_number: data.user.user_metadata?.phone_number,
+        created_at: data.user.created_at || new Date().toISOString(),
+      };
+      await supabase.from('profiles').upsert([profile], { onConflict: 'id' });
     }
 
-    cred.password = password;
-    this.saveCredentials();
-    db.saveAll();
+    if (requiredRole && profile.role !== requiredRole) {
+      throw new Error(`This account has role '${profile.role}'. Please switch to the ${profile.role} login tab.`);
+    }
 
     this.saveSession(profile);
-    db.setCurrentUser(profile.id);
+    db.setCurrentUser(profile);
     return profile;
   }
 
-  // --- REAL SIGN UP / REGISTRATION ---
-
+  // --- REAL SUPABASE REGISTRATION ---
   public async signUp(params: {
     full_name: string;
     email: string;
@@ -193,74 +117,45 @@ class AuthService {
       throw new Error('Password must be at least 6 characters long.');
     }
 
-    // If staff registration, require authorization passcode
     if (params.role === 'staff' || params.role === 'admin') {
       if (params.staffSecurityKey !== STAFF_SECURITY_CODE) {
         throw new Error('Invalid Staff Authorization Security Code. Only official Corridor Hill personnel can create staff accounts.');
       }
     }
 
-    // Check if account already exists
-    if (this.credentials.has(cleanEmail)) {
-      throw new Error('An account with this email address is already registered. Please sign in instead.');
-    }
-
     const supabase = supabaseService.getClient();
-    const isSupabaseLive = supabaseService.getStatus().isConnected;
-
-    // 1. Supabase Auth Sign Up if connected
-    let supabaseUserId: string | null = null;
-    if (supabase && isSupabaseLive) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: params.password,
-          options: {
-            data: {
-              full_name: params.full_name.trim(),
-              role: params.role,
-              student_number: params.student_number?.trim(),
-              building: params.building,
-              room_number: params.room_number?.trim(),
-              phone_number: params.phone_number?.trim(),
-              password: params.password,
-            },
-          },
-        });
-        if (error) {
-          throw new Error(error.message);
-        }
-        if (data?.user?.id) {
-          supabaseUserId = data.user.id;
-        }
-      } catch (err: any) {
-        console.error('Supabase Auth Sign Up error:', err);
-        throw new Error(err.message || 'Supabase authentication failed. Please check your credentials.');
-      }
+    if (!supabase) {
+      throw new Error(
+        'Database connection error: Supabase is not configured. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your Vercel Project Settings and redeploy.'
+      );
     }
 
-    // 2. Store in local authenticated credentials
-    const salt = Math.random().toString(36).substring(2, 10);
-    const passwordHash = await hashPassword(params.password, salt);
-
-    this.credentials.set(cleanEmail, {
+    const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
-      passwordHash,
       password: params.password,
-      role: params.role,
-      salt,
+      options: {
+        data: {
+          full_name: params.full_name.trim(),
+          role: params.role,
+          student_number: params.student_number?.trim(),
+          building: params.building,
+          room_number: params.room_number?.trim(),
+          phone_number: params.phone_number?.trim(),
+          password: params.password,
+        },
+      },
     });
-    this.saveCredentials();
 
-    // 3. Create profile in database
-    const profileId =
-      supabaseUserId ||
-      (typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error('Registration failed: no user returned from Supabase.');
+    }
 
     const newProfile: Profile = {
-      id: profileId,
+      id: data.user.id,
       full_name: params.full_name.trim(),
       email: cleanEmail,
       role: params.role,
@@ -268,93 +163,56 @@ class AuthService {
       building: params.building,
       room_number: params.room_number?.trim(),
       phone_number: params.phone_number?.trim(),
-      password: params.password, // Persisted on database record
+      password: params.password,
       created_at: new Date().toISOString(),
     };
 
-    (db as any).profiles.push(newProfile);
-    db.saveAll();
-    this.saveSession(newProfile);
-    db.setCurrentUser(newProfile.id);
-
-    // If Supabase is connected, directly await upsert into public.profiles
-    if (supabase && isSupabaseLive) {
+    // Ensure session is set if returned (when email confirmation is disabled in Supabase)
+    if (data.session) {
       try {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert([newProfile], { onConflict: 'email' });
-        if (profileError) {
-          console.error('Supabase public.profiles upsert error:', profileError);
-          throw new Error(`Profile database error: ${profileError.message}`);
-        }
-      } catch (upsertErr: any) {
-        console.error('Failed to sync profile to Supabase:', upsertErr);
-        throw new Error(upsertErr.message || 'Failed to save profile to database.');
-      }
+        await supabase.auth.setSession(data.session);
+      } catch (_) { }
     }
 
+    // Sync to public.profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert([newProfile], { onConflict: 'id' });
+
+    if (profileError) {
+      console.warn('Supabase public.profiles upsert notice:', profileError.message);
+    }
+
+    this.saveSession(newProfile);
+    db.setCurrentUser(newProfile);
     return newProfile;
   }
 
   // --- PASSWORD RESET ---
-
-  public async resetPassword(email: string, newPassword: string): Promise<boolean> {
+  public async resetPassword(email: string, _newPassword?: string): Promise<boolean> {
     const cleanEmail = email.trim().toLowerCase();
-    const cred = this.credentials.get(cleanEmail);
-
-    if (!cred) {
-      throw new Error('No registered account found with this email.');
-    }
-    if (newPassword.length < 6) {
-      throw new Error('New password must be at least 6 characters long.');
-    }
-
-    const salt = Math.random().toString(36).substring(2, 10);
-    const passwordHash = await hashPassword(newPassword, salt);
-    cred.passwordHash = passwordHash;
-    cred.password = newPassword;
-    cred.salt = salt;
-
-    this.credentials.set(cleanEmail, cred);
-    this.saveCredentials();
-
-    // Update profile password in database
-    const profile = db.getAllProfiles().find((p) => p.email.toLowerCase() === cleanEmail);
-    if (profile) {
-      profile.password = newPassword;
-      db.saveAll();
-    }
-
     const supabase = supabaseService.getClient();
-    if (supabase && supabaseService.getStatus().isConnected) {
-      supabase.auth.updateUser({ password: newPassword }).catch((e) => {
-        console.warn('Supabase remote password update notice:', e);
-      });
-      supabase
-        .from('profiles')
-        .update({ password: newPassword })
-        .eq('email', cleanEmail)
-        .then(({ error }) => {
-          if (error) console.warn('Supabase profile password update notice:', error.message);
-        });
+    if (!supabase) {
+      throw new Error('Supabase is not configured.');
     }
 
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
+    if (error) {
+      throw new Error(error.message);
+    }
     return true;
   }
 
   // --- SESSION MANAGEMENT ---
-
   private saveSession(profile: Profile) {
     const session: AuthSession = {
       token: `chm_token_${Date.now()}_${Math.random().toString(36).substring(2)}`,
       user: profile,
-      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
     };
     try {
       localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
-    } catch (e) {
-      console.warn('Session save failed', e);
-    }
+    } catch (_) { }
   }
 
   public getSession(): AuthSession | null {
@@ -367,7 +225,7 @@ class AuthService {
         return null;
       }
       return session;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
@@ -377,7 +235,7 @@ class AuthService {
       localStorage.removeItem(STORAGE_KEYS.SESSION);
       const supabase = supabaseService.getClient();
       if (supabase) {
-        supabase.auth.signOut().catch(() => {});
+        supabase.auth.signOut().catch(() => { });
       }
       db.logout();
     } catch (e) {

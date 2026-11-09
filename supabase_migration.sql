@@ -144,7 +144,7 @@ $$ language plpgsql security definer;
 -- PROFILES POLICIES
 create policy "Users can view all staff and own profile"
   on public.profiles for select
-  using (auth.uid() = id or role in ('staff', 'admin'));
+  using (auth.uid() = id or role in ('staff', 'admin') or public.is_staff());
 
 create policy "Enable insert for registration and user profiles"
   on public.profiles for insert
@@ -158,7 +158,7 @@ create policy "Users can update only their own profile details"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, email, role, phone_number, room_number, building, password)
+  insert into public.profiles (id, full_name, email, role, phone_number, room_number, building, student_number, password)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
@@ -167,12 +167,16 @@ begin
     new.raw_user_meta_data->>'phone_number',
     new.raw_user_meta_data->>'room_number',
     new.raw_user_meta_data->>'building',
+    new.raw_user_meta_data->>'student_number',
     new.raw_user_meta_data->>'password'
   )
   on conflict (id) do update set
     full_name = excluded.full_name,
     role = excluded.role,
     phone_number = excluded.phone_number,
+    room_number = excluded.room_number,
+    building = excluded.building,
+    student_number = excluded.student_number,
     password = coalesce(excluded.password, public.profiles.password);
   return new;
 end;
