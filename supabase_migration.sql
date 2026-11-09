@@ -146,10 +146,42 @@ create policy "Users can view all staff and own profile"
   on public.profiles for select
   using (auth.uid() = id or role in ('staff', 'admin'));
 
+create policy "Enable insert for registration and user profiles"
+  on public.profiles for insert
+  with check (true);
+
 create policy "Users can update only their own profile details"
   on public.profiles for update
-  using (auth.uid() = id)
-  with check (auth.uid() = id and role = (select role from public.profiles where id = auth.uid()));
+  using (auth.uid() = id or public.is_staff());
+
+-- Automatic trigger to copy auth.users directly into public.profiles
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, full_name, email, role, phone_number, room_number, building, password)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    new.email,
+    coalesce((new.raw_user_meta_data->>'role')::user_role, 'student'::user_role),
+    new.raw_user_meta_data->>'phone_number',
+    new.raw_user_meta_data->>'room_number',
+    new.raw_user_meta_data->>'building',
+    new.raw_user_meta_data->>'password'
+  )
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    role = excluded.role,
+    phone_number = excluded.phone_number,
+    password = coalesce(excluded.password, public.profiles.password);
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
 -- MAINTENANCE REQUESTS POLICIES
 create policy "Students can view only their own requests; Staff can view all"

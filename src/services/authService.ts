@@ -223,6 +223,7 @@ class AuthService {
               building: params.building,
               room_number: params.room_number?.trim(),
               phone_number: params.phone_number?.trim(),
+              password: params.password,
             },
           },
         });
