@@ -247,7 +247,7 @@ export const PitchDeckModal: React.FC<PitchDeckModalProps> = ({ isOpen, onClose 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
                   <span className="text-amber-400 font-bold text-xs uppercase">Automated Triage</span>
-                  <p className="text-xs text-slate-400">Filter tickets across Block A through Block E instantly by Emergency, Urgent, or Normal priority.</p>
+                  <p className="text-xs text-slate-400">Filter tickets across Block A through Block F instantly by Emergency, Urgent, or Normal priority.</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
                   <span className="text-sky-400 font-bold text-xs uppercase">Technician Allocation</span>

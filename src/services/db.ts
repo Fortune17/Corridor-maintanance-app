@@ -10,6 +10,12 @@ import {
   RequestCategory,
   BuildingBlock,
   CommentVisibility,
+  ForumPost,
+  ForumComment,
+  UserFollow,
+  ForumPostLike,
+  PostVisibility,
+  PostCategory,
 } from '../types/database';
 import {
   SAMPLE_PROFILES,
@@ -53,6 +59,10 @@ class DatabaseService {
   private attachments: RequestAttachment[] = [];
   private history: RequestHistory[] = [];
   private notifications: AppNotification[] = [];
+  private forumPosts: ForumPost[] = [];
+  private forumComments: ForumComment[] = [];
+  private userFollows: UserFollow[] = [];
+  private forumPostLikes: ForumPostLike[] = [];
   private currentUser: Profile | null = null;
   private listeners: Set<() => void> = new Set();
   private notificationListeners: Set<(notif: AppNotification) => void> = new Set();
@@ -95,6 +105,10 @@ class DatabaseService {
       this.attachments = [];
       this.history = [];
       this.notifications = [];
+      this.forumPosts = [];
+      this.forumComments = [];
+      this.userFollows = [];
+      this.forumPostLikes = [];
       this.currentUser = null;
 
       // Rehydrate active user from live auth session
@@ -172,6 +186,26 @@ class DatabaseService {
 
       if (data.notifications !== undefined) {
         this.notifications = data.notifications || [];
+        changed = true;
+      }
+
+      if (data.forumPosts !== undefined) {
+        this.forumPosts = data.forumPosts || [];
+        changed = true;
+      }
+
+      if (data.forumComments !== undefined) {
+        this.forumComments = data.forumComments || [];
+        changed = true;
+      }
+
+      if (data.userFollows !== undefined) {
+        this.userFollows = data.userFollows || [];
+        changed = true;
+      }
+
+      if (data.forumPostLikes !== undefined) {
+        this.forumPostLikes = data.forumPostLikes || [];
         changed = true;
       }
 
@@ -258,6 +292,10 @@ class DatabaseService {
     this.attachments = [];
     this.history = [];
     this.notifications = [];
+    this.forumPosts = [];
+    this.forumComments = [];
+    this.userFollows = [];
+    this.forumPostLikes = [];
     this.currentUser = null;
     this.saveAll();
   }
@@ -310,6 +348,69 @@ class DatabaseService {
 
   public getStaffMembers(): Profile[] {
     return this.profiles.filter((p) => p.role === 'staff' || p.role === 'admin');
+  }
+
+  public updateCurrentUserProfile(updates: {
+    full_name?: string;
+    building?: BuildingBlock;
+    room_number?: string;
+    phone_number?: string;
+    bio?: string;
+    course?: string;
+    interests?: string[];
+  }): Profile {
+    if (!this.currentUser) throw new Error('You must be signed in to update your profile.');
+
+    const updatedUser: Profile = {
+      ...this.currentUser,
+      full_name: updates.full_name !== undefined ? updates.full_name.trim() || this.currentUser.full_name : this.currentUser.full_name,
+      building: updates.building !== undefined ? updates.building : this.currentUser.building,
+      room_number: updates.room_number !== undefined ? updates.room_number.trim() : this.currentUser.room_number,
+      phone_number: updates.phone_number !== undefined ? updates.phone_number.trim() : this.currentUser.phone_number,
+      bio: updates.bio !== undefined ? updates.bio.trim() : this.currentUser.bio,
+      course: updates.course !== undefined ? updates.course.trim() : this.currentUser.course,
+      interests: updates.interests !== undefined ? updates.interests : this.currentUser.interests,
+    };
+
+    this.currentUser = updatedUser;
+    const idx = this.profiles.findIndex((p) => p.id === updatedUser.id);
+    if (idx >= 0) {
+      this.profiles[idx] = updatedUser;
+    } else {
+      this.profiles.push(updatedUser);
+    }
+
+    // Persist updated session snapshot in localStorage
+    try {
+      const storedSession = localStorage.getItem('chm_auth_session_live_v1');
+      if (storedSession) {
+        const parsed = JSON.parse(storedSession);
+        parsed.user = updatedUser;
+        localStorage.setItem('chm_auth_session_live_v1', JSON.stringify(parsed));
+      }
+    } catch (_) {}
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('profiles')
+          .update({
+            full_name: updatedUser.full_name,
+            building: updatedUser.building,
+            room_number: updatedUser.room_number,
+            phone_number: updatedUser.phone_number,
+            bio: updatedUser.bio || null,
+            course: updatedUser.course || null,
+            interests: updatedUser.interests || [],
+          })
+          .eq('id', updatedUser.id),
+        'profile update'
+      );
+    }
+
+    this.saveAll();
+    return updatedUser;
   }
 
   public logout() {
@@ -394,6 +495,7 @@ class DatabaseService {
       priority: params.priority,
       status: 'Submitted',
       preferred_access_time: params.preferred_access_time?.trim() || undefined,
+      student_confirmed_resolved: false,
       reopen_count: 0,
       created_at: now,
       updated_at: now,
@@ -853,6 +955,125 @@ class DatabaseService {
     return req;
   }
 
+  public updateStudentAccessTime(requestId: string, preferredAccessTime: string): MaintenanceRequest {
+    if (!this.currentUser) throw new Error('Unauthorized');
+    const req = this.requests.find((r) => r.id === requestId);
+    if (!req) throw new Error('Request not found');
+
+    if (this.currentUser.role === 'student' && req.student_id !== this.currentUser.id) {
+      throw new Error('RLS Violation: You can only update your own requests.');
+    }
+
+    if (req.status === 'Closed' || req.status === 'Resolved') {
+      throw new Error('Cannot modify access window on a resolved or closed ticket.');
+    }
+
+    const prevTime = req.preferred_access_time || 'None specified';
+    const nextTime = preferredAccessTime.trim();
+    const now = new Date().toISOString();
+
+    req.preferred_access_time = nextTime || undefined;
+    req.updated_at = now;
+
+    const histRecord: RequestHistory = {
+      id: generateUUID(),
+      request_id: req.id,
+      actor_id: this.currentUser.id,
+      actor_name: this.currentUser.full_name,
+      actor_role: this.currentUser.role,
+      action: 'Preferred Access Window Updated',
+      previous_value: prevTime,
+      new_value: nextTime || 'None specified',
+      notes: nextTime ? `Student updated access window to "${nextTime}".` : 'Student cleared access window.',
+      created_at: now,
+    };
+    this.history.unshift(histRecord);
+
+    if (req.assigned_to) {
+      this.pushNotification({
+        user_id: req.assigned_to,
+        request_id: req.id,
+        title: `Access Time Updated: ${req.reference_number}`,
+        message: `${this.currentUser.full_name} set preferred access to: "${nextTime || 'Anytime'}".`,
+      });
+    }
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            preferred_access_time: req.preferred_access_time || null,
+            updated_at: req.updated_at,
+          })
+          .eq('id', req.id),
+        'access window update'
+      );
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+    }
+
+    this.saveAll();
+    return req;
+  }
+
+  public withdrawSubmittedRequest(requestId: string, reason?: string): MaintenanceRequest {
+    if (!this.currentUser) throw new Error('Unauthorized');
+    const req = this.requests.find((r) => r.id === requestId);
+    if (!req) throw new Error('Request not found');
+
+    if (this.currentUser.role === 'student' && req.student_id !== this.currentUser.id) {
+      throw new Error('RLS Violation: You can only withdraw your own requests.');
+    }
+
+    if (req.status !== 'Submitted') {
+      throw new Error('Only newly submitted requests (not yet under review or assigned) can be withdrawn.');
+    }
+
+    const now = new Date().toISOString();
+    const cleanReason = reason?.trim() || 'Resolved by student or submitted in error.';
+    req.status = 'Closed';
+    req.student_confirmed_resolved = true;
+    req.closed_at = now;
+    req.updated_at = now;
+    req.work_performed = `Withdrawn by student: ${cleanReason}`;
+
+    const histRecord: RequestHistory = {
+      id: generateUUID(),
+      request_id: req.id,
+      actor_id: this.currentUser.id,
+      actor_name: this.currentUser.full_name,
+      actor_role: this.currentUser.role,
+      action: 'Request Withdrawn by Student',
+      previous_value: 'Submitted',
+      new_value: 'Closed',
+      notes: cleanReason,
+      created_at: now,
+    };
+    this.history.unshift(histRecord);
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('maintenance_requests')
+          .update({
+            status: 'Closed',
+            closed_at: req.closed_at,
+            student_confirmed_resolved: true,
+            work_performed: req.work_performed,
+            updated_at: req.updated_at,
+          })
+          .eq('id', req.id),
+        'withdraw update'
+      );
+      safePush(client.from('request_history').insert([histRecord]), 'history insert');
+    }
+
+    this.saveAll();
+    return req;
+  }
+
   // --- COMMENTS (RLS ENFORCED VISIBILITY) ---
 
   public getComments(requestId: string): RequestComment[] {
@@ -1203,6 +1424,320 @@ class DatabaseService {
     });
 
     return [headers.join(','), ...rows].join('\n');
+  }
+
+  // --- SOCIAL PROFILES, FOLLOWING & FRIENDS ---
+
+  public getProfileById(userId: string): Profile | undefined {
+    return this.profiles.find((p) => p.id === userId);
+  }
+
+  public isFollowing(targetUserId: string, viewerId?: string): boolean {
+    const uid = viewerId || this.currentUser?.id;
+    if (!uid || uid === targetUserId) return false;
+    return this.userFollows.some(
+      (f) => f.follower_id === uid && f.following_id === targetUserId
+    );
+  }
+
+  public isFollowedBy(targetUserId: string, viewerId?: string): boolean {
+    const uid = viewerId || this.currentUser?.id;
+    if (!uid || uid === targetUserId) return false;
+    return this.userFollows.some(
+      (f) => f.follower_id === targetUserId && f.following_id === uid
+    );
+  }
+
+  public isMutualFriend(targetUserId: string, viewerId?: string): boolean {
+    const uid = viewerId || this.currentUser?.id;
+    if (!uid) return false;
+    if (uid === targetUserId) return true;
+    return this.isFollowing(targetUserId, uid) && this.isFollowedBy(targetUserId, uid);
+  }
+
+  public getFollowers(userId: string): Profile[] {
+    const followerIds = new Set(
+      this.userFollows.filter((f) => f.following_id === userId).map((f) => f.follower_id)
+    );
+    return this.profiles.filter((p) => followerIds.has(p.id));
+  }
+
+  public getFollowing(userId: string): Profile[] {
+    const followingIds = new Set(
+      this.userFollows.filter((f) => f.follower_id === userId).map((f) => f.following_id)
+    );
+    return this.profiles.filter((p) => followingIds.has(p.id));
+  }
+
+  public getFriends(userId: string): Profile[] {
+    return this.profiles.filter(
+      (p) => p.id !== userId && this.isMutualFriend(p.id, userId)
+    );
+  }
+
+  public toggleFollow(targetUserId: string): boolean {
+    if (!this.currentUser) throw new Error('You must be signed in to follow users.');
+    if (this.currentUser.id === targetUserId) {
+      throw new Error('You cannot follow yourself.');
+    }
+
+    const existingIdx = this.userFollows.findIndex(
+      (f) => f.follower_id === this.currentUser!.id && f.following_id === targetUserId
+    );
+
+    const client = supabaseService.getClient();
+
+    if (existingIdx >= 0) {
+      const removed = this.userFollows[existingIdx];
+      this.userFollows.splice(existingIdx, 1);
+      if (client) {
+        safePush(
+          client
+            .from('user_follows')
+            .delete()
+            .eq('follower_id', removed.follower_id)
+            .eq('following_id', removed.following_id),
+          'unfollow user'
+        );
+      }
+      this.saveAll();
+      return false;
+    }
+
+    const newFollow: UserFollow = {
+      id: generateUUID(),
+      follower_id: this.currentUser.id,
+      following_id: targetUserId,
+      created_at: new Date().toISOString(),
+    };
+    this.userFollows.push(newFollow);
+
+    if (client) {
+      safePush(client.from('user_follows').insert([newFollow]), 'follow user');
+    }
+
+    this.saveAll();
+    return true;
+  }
+
+  // --- RESIDENCE FORUM & STAFF/MANAGER ANNOUNCEMENTS ---
+
+  public getVisiblePosts(filter?: 'all' | 'everyone' | 'friends' | 'announcements', authorId?: string): ForumPost[] {
+    if (!this.currentUser) return [];
+    const viewerId = this.currentUser.id;
+
+    return this.forumPosts
+      .filter((post) => {
+        if (authorId && post.author_id !== authorId) return false;
+
+        // Visibility enforcement
+        const canSee =
+          post.visibility === 'everyone' ||
+          post.visibility === 'announcement' ||
+          post.author_id === viewerId ||
+          (post.visibility === 'friends' && this.isMutualFriend(post.author_id, viewerId));
+
+        if (!canSee) return false;
+
+        if (filter === 'everyone') return post.visibility === 'everyone';
+        if (filter === 'friends') return post.visibility === 'friends';
+        if (filter === 'announcements') return post.visibility === 'announcement';
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }
+
+  public getPinnedAnnouncements(): ForumPost[] {
+    return this.forumPosts
+      .filter((p) => p.visibility === 'announcement')
+      .sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }
+
+  public createForumPost(params: {
+    title?: string;
+    content: string;
+    category: PostCategory;
+    visibility: PostVisibility;
+    is_pinned?: boolean;
+    image_url?: string;
+  }): ForumPost {
+    if (!this.currentUser) throw new Error('You must be signed in to post.');
+    if (!params.content.trim()) throw new Error('Post content cannot be empty.');
+
+    const isStaffOrManager =
+      this.currentUser.role === 'staff' || this.currentUser.role === 'admin';
+
+    if (params.visibility === 'announcement' && !isStaffOrManager) {
+      throw new Error('Only residence managers and maintenance staff can publish official announcements.');
+    }
+
+    const now = new Date().toISOString();
+    const post: ForumPost = {
+      id: generateUUID(),
+      author_id: this.currentUser.id,
+      author_name: this.currentUser.full_name,
+      author_role: this.currentUser.role,
+      author_building: this.currentUser.building,
+      author_room: this.currentUser.room_number,
+      title: params.title?.trim() || undefined,
+      content: params.content.trim(),
+      category: params.category,
+      visibility: params.visibility,
+      is_pinned: params.visibility === 'announcement' && isStaffOrManager ? Boolean(params.is_pinned) : false,
+      image_url: params.image_url,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this.forumPosts.unshift(post);
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('forum_posts').insert([post]), 'forum post insert');
+    }
+
+    this.saveAll();
+    return post;
+  }
+
+  public togglePinPost(postId: string): ForumPost {
+    if (!this.currentUser || (this.currentUser.role !== 'staff' && this.currentUser.role !== 'admin')) {
+      throw new Error('Only residence managers and maintenance staff can pin announcements.');
+    }
+
+    const post = this.forumPosts.find((p) => p.id === postId);
+    if (!post) throw new Error('Post not found.');
+
+    post.is_pinned = !post.is_pinned;
+    post.updated_at = new Date().toISOString();
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(
+        client
+          .from('forum_posts')
+          .update({ is_pinned: post.is_pinned, updated_at: post.updated_at })
+          .eq('id', postId),
+        'toggle pin post'
+      );
+    }
+
+    this.saveAll();
+    return post;
+  }
+
+  public deleteForumPost(postId: string) {
+    if (!this.currentUser) throw new Error('Unauthorized');
+    const post = this.forumPosts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const isStaffOrManager =
+      this.currentUser.role === 'staff' || this.currentUser.role === 'admin';
+    if (post.author_id !== this.currentUser.id && !isStaffOrManager) {
+      throw new Error('You can only delete your own posts.');
+    }
+
+    this.forumPosts = this.forumPosts.filter((p) => p.id !== postId);
+    this.forumComments = this.forumComments.filter((c) => c.post_id !== postId);
+    this.forumPostLikes = this.forumPostLikes.filter((l) => l.post_id !== postId);
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('forum_posts').delete().eq('id', postId), 'delete forum post');
+    }
+
+    this.saveAll();
+  }
+
+  public getPostComments(postId: string): ForumComment[] {
+    return this.forumComments
+      .filter((c) => c.post_id === postId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }
+
+  public addPostComment(postId: string, content: string): ForumComment {
+    if (!this.currentUser) throw new Error('Unauthorized');
+    if (!content.trim()) throw new Error('Comment cannot be empty.');
+
+    const comm: ForumComment = {
+      id: generateUUID(),
+      post_id: postId,
+      author_id: this.currentUser.id,
+      author_name: this.currentUser.full_name,
+      author_role: this.currentUser.role,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    this.forumComments.push(comm);
+
+    const client = supabaseService.getClient();
+    if (client) {
+      safePush(client.from('forum_comments').insert([comm]), 'forum comment insert');
+    }
+
+    this.saveAll();
+    return comm;
+  }
+
+  public getPostLikesCount(postId: string): number {
+    return this.forumPostLikes.filter((l) => l.post_id === postId).length;
+  }
+
+  public hasLikedPost(postId: string): boolean {
+    if (!this.currentUser) return false;
+    return this.forumPostLikes.some(
+      (l) => l.post_id === postId && l.user_id === this.currentUser!.id
+    );
+  }
+
+  public togglePostLike(postId: string): boolean {
+    if (!this.currentUser) throw new Error('Unauthorized');
+
+    const idx = this.forumPostLikes.findIndex(
+      (l) => l.post_id === postId && l.user_id === this.currentUser!.id
+    );
+
+    const client = supabaseService.getClient();
+
+    if (idx >= 0) {
+      this.forumPostLikes.splice(idx, 1);
+      if (client) {
+        safePush(
+          client
+            .from('forum_post_likes')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', this.currentUser.id),
+          'unlike post'
+        );
+      }
+      this.saveAll();
+      return false;
+    }
+
+    const like: ForumPostLike = {
+      id: generateUUID(),
+      post_id: postId,
+      user_id: this.currentUser.id,
+      created_at: new Date().toISOString(),
+    };
+    this.forumPostLikes.push(like);
+
+    if (client) {
+      safePush(client.from('forum_post_likes').insert([like]), 'like post');
+    }
+
+    this.saveAll();
+    return true;
   }
 }
 

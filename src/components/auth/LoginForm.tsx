@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../../services/authService';
-import { BuildingBlock, UserRole } from '../../types/database';
+import { BUILDING_BLOCKS, BuildingBlock, UserRole } from '../../types/database';
 import { 
   Building2, 
   GraduationCap, 
@@ -62,6 +62,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [roomNumber, setRoomNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [staffKey, setStaffKey] = useState('');
+  const [staffRegRole, setStaffRegRole] = useState<'staff' | 'admin'>('staff');
 
   // Password reset inputs
   const [resetEmail, setResetEmail] = useState('');
@@ -136,7 +137,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         full_name: fullName,
         email: regEmail,
         password: regPassword,
-        role: roleTab as UserRole,
+        role: roleTab === 'staff' ? staffRegRole : 'student',
         student_number: roleTab === 'student' ? studentNumber : undefined,
         building: roleTab === 'student' ? building : undefined,
         room_number: roleTab === 'student' ? roomNumber : undefined,
@@ -258,7 +259,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                   }`}
                 >
                   <Wrench className="w-4 h-4 text-amber-700" />
-                  <span>Maintenance Staff</span>
+                  <span>Staff / Manager</span>
                 </button>
               </div>
             )}
@@ -502,34 +503,48 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                         onChange={(e) => setBuilding(e.target.value as BuildingBlock)}
                         className="w-full px-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 bg-white"
                       >
-                        <option value="Block A (Oak Hall)">Block A (Oak Hall)</option>
-                        <option value="Block B (Pine Hall)">Block B (Pine Hall)</option>
-                        <option value="Block C (Maple Hall)">Block C (Maple Hall)</option>
-                        <option value="Block D (Cedar Hall)">Block D (Cedar Hall)</option>
-                        <option value="Block E (Willow Annex)">Block E (Willow Annex)</option>
-                        <option value="Communal Facilities">Communal Facilities</option>
+                        {BUILDING_BLOCKS.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </>
                 )}
 
-                {/* Staff specific authorization security key */}
+                {/* Staff / Manager specific authorization security key */}
                 {roleTab === 'staff' && (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider">
-                      Staff Security Passcode <span className="text-red-600">*</span>
-                    </label>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                      <input
-                        type="password"
-                        value={staffKey}
-                        onChange={(e) => setStaffKey(e.target.value)}
-                        placeholder="••••••••••••••••••••"
-                        className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 font-mono tracking-wider"
-                        required
-                        autoComplete="new-password"
-                      />
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-2.5">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                        Personnel Role <span className="text-red-600">*</span>
+                      </label>
+                      <select
+                        value={staffRegRole}
+                        onChange={(e) => setStaffRegRole(e.target.value as 'staff' | 'admin')}
+                        className="w-full px-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-sky-600"
+                      >
+                        <option value="staff">Maintenance Staff</option>
+                        <option value="admin">Residence Manager</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                        Staff Security Passcode <span className="text-red-600">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                        <input
+                          type="password"
+                          value={staffKey}
+                          onChange={(e) => setStaffKey(e.target.value)}
+                          placeholder="••••••••••••••••••••"
+                          className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 font-mono tracking-wider"
+                          required
+                          autoComplete="new-password"
+                        />
+                      </div>
                     </div>
                     <p className="text-[11px] text-slate-500">
                       Confidential authorization code issued exclusively to verified personnel by Residence Administration.

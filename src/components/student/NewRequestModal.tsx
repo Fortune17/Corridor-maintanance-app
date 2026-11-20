@@ -1,25 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../../services/db';
-import { 
-  BuildingBlock, 
-  RequestCategory, 
-  RequestPriority 
+import {
+  BUILDING_BLOCKS,
+  BuildingBlock,
+  RequestCategory,
+  RequestPriority,
 } from '../../types/database';
-import { 
-  X, 
-  AlertTriangle, 
-  Upload, 
-  CheckCircle, 
-  PhoneCall, 
-  Image as ImageIcon,
+import {
+  ISSUE_PRESETS,
+  ACCESS_WINDOW_SUGGESTIONS,
+  IssuePreset,
+} from '../../data/studentHelpers';
+import {
+  X,
+  AlertTriangle,
+  Upload,
+  CheckCircle,
+  Wrench,
   Clock,
-  Sparkles
 } from 'lucide-react';
 
 interface NewRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRequestCreated: (requestId: string) => void;
+  initialTemplate?: IssuePreset | null;
 }
 
 const CATEGORIES: RequestCategory[] = [
@@ -34,22 +39,17 @@ const CATEGORIES: RequestCategory[] = [
   'Other',
 ];
 
-const BUILDINGS: BuildingBlock[] = [
-  'Block A (Oak Hall)',
-  'Block B (Pine Hall)',
-  'Block C (Maple Hall)',
-  'Block D (Cedar Hall)',
-  'Block E (Willow Annex)',
-  'Communal Facilities',
-];
+const BUILDINGS: BuildingBlock[] = BUILDING_BLOCKS;
 
 export const NewRequestModal: React.FC<NewRequestModalProps> = ({
   isOpen,
   onClose,
   onRequestCreated,
+  initialTemplate,
 }) => {
   const currentUser = db.getCurrentUser();
 
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<RequestCategory>('Plumbing and water leaks');
   const [description, setDescription] = useState('');
@@ -63,10 +63,59 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
     Array<{ file_name: string; storage_path: string; file_type: string; file_size?: number }>
   >([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successRef, setSuccessRef] = useState<string | null>(null);
+  const [dismissedSelfCheck, setDismissedSelfCheck] = useState(false);
+
+  // Reset & apply initial template when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const freshUser = db.getCurrentUser();
+    setBuilding(freshUser?.building || 'Block B (Pine Hall)');
+    setRoomNumber(freshUser?.room_number || '');
+    setAttachments([]);
+    setErrors({});
+    setSubmitError(null);
+    setSuccessRef(null);
+    setIsSubmitting(false);
+    setDismissedSelfCheck(false);
+
+    if (initialTemplate) {
+      setSelectedPresetId(initialTemplate.id);
+      setTitle(initialTemplate.title);
+      setCategory(initialTemplate.category);
+      setPriority(initialTemplate.priority);
+      setDescription('');
+    } else {
+      setSelectedPresetId(null);
+      setTitle('');
+      setCategory('Plumbing and water leaks');
+      setPriority('Normal');
+      setDescription('');
+    }
+    setPreferredAccessTime('');
+  }, [isOpen, initialTemplate]);
 
   if (!isOpen) return null;
+
+  const activePreset =
+    ISSUE_PRESETS.find((p) => p.id === selectedPresetId) ||
+    ISSUE_PRESETS.find((p) => p.category === category);
+
+  const handleApplyPreset = (preset: IssuePreset) => {
+    if (selectedPresetId === preset.id) {
+      setSelectedPresetId(null);
+      return;
+    }
+    setSelectedPresetId(preset.id);
+    setTitle(preset.title);
+    setCategory(preset.category);
+    setPriority(preset.priority);
+    setDismissedSelfCheck(false);
+    setErrors((prev) => ({ ...prev, title: '' }));
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -75,13 +124,14 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      // Validate size (< 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, attachments: `File "${file.name}" is larger than 5MB. Please choose a smaller image.` }));
+        setErrors((prev) => ({
+          ...prev,
+          attachments: `File "${file.name}" is larger than 5MB. Please choose a smaller image.`,
+        }));
         continue;
       }
 
-      // Convert to Data URL for instant resilient preview and persistence
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -116,6 +166,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -137,18 +188,18 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
         setTimeout(() => {
           onRequestCreated(newReq.id);
           onClose();
-        }, 1200);
+        }, 1100);
       } catch (err: any) {
         setIsSubmitting(false);
-        alert(err.message || 'Submission failed');
+        setSubmitError(err.message || 'Submission failed. Please try again.');
       }
-    }, 300);
+    }, 250);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div 
-        className="w-full max-w-2xl bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden my-8"
+      <div
+        className="w-full max-w-2xl bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden my-6"
         role="dialog"
         aria-label="Report Maintenance Issue"
       >
@@ -163,22 +214,27 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-200/60 transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Emergency Callout (Per Specification) */}
+        {/* Emergency Callout */}
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-start gap-3 text-amber-900 text-xs">
           <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold block text-amber-950">
               Urgent Safety Guidance:
             </span>
-            Submitting this online ticket is not an immediate emergency dispatch service. For life-safety emergencies (active burst pipes/flooding, sparking wires, fire hazards, or security lockouts), immediately call Corridor Hill 24/7 Emergency Desk at{' '}
-            <strong className="underline decoration-amber-400">+27 (0)11 555-0199</strong> or visit Block B Security Reception.
+            For active flooding, sparking electrical outlets, fire hazards, or security lockouts, immediately call 24/7 Emergency Desk at{' '}
+            <a href="tel:+27115550199" className="font-semibold underline decoration-amber-500">
+              +27 (0)11 555-0199
+            </a>{' '}
+            or visit Block B Security Reception.
           </div>
         </div>
 
@@ -200,9 +256,75 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+            {submitError && (
+              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-800">
+                {submitError}
+              </div>
+            )}
+
+            {/* Quick-Fill Common Issue Presets */}
+            <div className="space-y-2">
+              <span className="block text-xs font-semibold text-slate-700">
+                Quick-Fill Common Issue
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {ISSUE_PRESETS.map((preset) => {
+                  const isActive = selectedPresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className={`px-2.5 py-1.5 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${
+                        isActive
+                          ? 'bg-sky-900 text-white border-sky-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Interactive Self-Check Guidance Box */}
+            {activePreset && !dismissedSelfCheck && activePreset.selfChecks.length > 0 && (
+              <div className="p-3.5 rounded-lg bg-sky-50/70 border border-sky-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 font-semibold text-sky-950">
+                    <Wrench className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+                    <span>30-Second Quick Check ({activePreset.label})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedSelfCheck(true)}
+                    className="text-[11px] font-medium text-sky-700 hover:text-sky-950 underline whitespace-nowrap"
+                  >
+                    Already checked
+                  </button>
+                </div>
+                <ul className="list-disc pl-4 space-y-1 text-slate-700 leading-relaxed">
+                  {activePreset.selfChecks.map((tip, idx) => (
+                    <li key={idx}>{tip}</li>
+                  ))}
+                </ul>
+                <div className="pt-1 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500">Still not working? Complete the form below.</span>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="font-semibold text-emerald-700 hover:text-emerald-900 whitespace-nowrap"
+                  >
+                    That fixed it! Cancel ticket
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Title */}
             <div>
-              <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-800 mb-1">
                 Issue Title <span className="text-red-600">*</span>
               </label>
               <input
@@ -220,12 +342,15 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
             {/* Category & Priority Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
                   Category <span className="text-red-600">*</span>
                 </label>
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as RequestCategory)}
+                  onChange={(e) => {
+                    setCategory(e.target.value as RequestCategory);
+                    setDismissedSelfCheck(false);
+                  }}
                   className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-sky-600 bg-white"
                 >
                   {CATEGORIES.map((cat) => (
@@ -237,7 +362,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
                   Priority Level <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -256,7 +381,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
             {/* Building & Room Location Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
                   Building Block <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -273,7 +398,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
                   Room / Location <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -291,14 +416,17 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
 
             {/* Detailed Description */}
             <div>
-              <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-800 mb-1">
                 Description of the Problem <span className="text-red-600">*</span>
               </label>
               <textarea
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Please describe what happened, when it started, and specific details that will help our technician bring the right replacement tools."
+                placeholder={
+                  activePreset?.descriptionHint ||
+                  'Please describe what happened, when it started, and specific details that will help our technician bring the right replacement tools.'
+                }
                 className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-hidden focus:ring-2 focus:ring-sky-600 ${
                   errors.description ? 'border-red-500 bg-red-50/30' : 'border-slate-300'
                 }`}
@@ -306,23 +434,40 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
               {errors.description && <p className="text-xs text-red-600 mt-1">{errors.description}</p>}
             </div>
 
-            {/* Preferred Access Time */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+            {/* Preferred Access Time with 1-Tap Suggestions */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-800">
                 Preferred Access Time <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
               <input
                 type="text"
                 value={preferredAccessTime}
                 onChange={(e) => setPreferredAccessTime(e.target.value)}
-                placeholder="e.g. Weekdays after 14:00, or anytime with security master key escort"
+                placeholder="e.g. Weekdays after 14:00, or anytime with security escort"
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-hidden focus:ring-2 focus:ring-sky-600"
               />
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                {ACCESS_WINDOW_SUGGESTIONS.map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setPreferredAccessTime(slot)}
+                    className={`px-2 py-1 text-[11px] rounded border transition-colors whitespace-nowrap ${
+                      preferredAccessTime === slot
+                        ? 'bg-sky-50 border-sky-300 text-sky-900 font-semibold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {slot}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Photo Attachments */}
             <div>
-              <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-800 mb-1">
                 Attach Photos of the Problem <span className="text-slate-400 font-normal">(Optional, up to 5MB each)</span>
               </label>
 
@@ -340,8 +485,8 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
                 </label>
                 <span className="text-xs text-slate-500">JPG, PNG, WebP supported</span>
               </div>
+              {errors.attachments && <p className="text-xs text-red-600 mt-1">{errors.attachments}</p>}
 
-              {/* Uploaded Thumbnails Preview */}
               {attachments.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {attachments.map((att, idx) => (
@@ -359,7 +504,7 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
                         <p className="text-xs font-medium text-slate-800 truncate">
                           {att.file_name}
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-slate-400 tabular-nums">
                           {att.file_size ? `${Math.round(att.file_size / 1024)} KB` : 'Image'}
                         </p>
                       </div>
@@ -382,14 +527,14 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                className="px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors whitespace-nowrap"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 text-xs font-semibold text-white bg-sky-900 hover:bg-sky-800 rounded-md transition-colors shadow-xs disabled:opacity-50"
+                className="px-5 py-2 text-xs font-semibold text-white bg-sky-900 hover:bg-sky-800 rounded-md transition-colors shadow-xs disabled:opacity-50 whitespace-nowrap"
               >
                 {isSubmitting ? 'Registering Request...' : 'Submit Maintenance Request'}
               </button>

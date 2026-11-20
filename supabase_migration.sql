@@ -352,3 +352,173 @@ drop policy if exists "Users can mark own notifications as read" on public.notif
 create policy "Users can mark own notifications as read"
   on public.notifications for update
   using (user_id = auth.uid());
+
+-- ==============================================================================
+-- 10. STUDENT PROFILES, FOLLOWING, FORUM POSTS & ANNOUNCEMENTS
+-- ==============================================================================
+
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists course text;
+alter table public.profiles add column if not exists interests text[] default '{}';
+
+do $$ begin
+  create type public.post_visibility as enum ('everyone', 'friends', 'announcement');
+exception when duplicate_object then null;
+end $$;
+
+-- 11. USER FOLLOWS TABLE (Mutual follow = Friends)
+create table if not exists public.user_follows (
+  id uuid default uuid_generate_v4() primary key,
+  follower_id uuid references public.profiles(id) on delete cascade not null,
+  following_id uuid references public.profiles(id) on delete cascade not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique (follower_id, following_id)
+);
+
+-- 12. FORUM POSTS & ANNOUNCEMENTS TABLE
+create table if not exists public.forum_posts (
+  id uuid default uuid_generate_v4() primary key,
+  author_id uuid references public.profiles(id) on delete cascade not null,
+  author_name text,
+  author_role public.user_role default 'student'::public.user_role,
+  author_building text,
+  author_room text,
+  title text,
+  content text not null,
+  category text not null default 'General',
+  visibility public.post_visibility not null default 'everyone'::public.post_visibility,
+  is_pinned boolean default false,
+  image_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 13. FORUM COMMENTS TABLE
+create table if not exists public.forum_comments (
+  id uuid default uuid_generate_v4() primary key,
+  post_id uuid references public.forum_posts(id) on delete cascade not null,
+  author_id uuid references public.profiles(id) on delete cascade not null,
+  author_name text,
+  author_role public.user_role default 'student'::public.user_role,
+  content text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 14. FORUM POST LIKES TABLE
+create table if not exists public.forum_post_likes (
+  id uuid default uuid_generate_v4() primary key,
+  post_id uuid references public.forum_posts(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique (post_id, user_id)
+);
+
+create index if not exists idx_user_follows_follower on public.user_follows(follower_id);
+create index if not exists idx_user_follows_following on public.user_follows(following_id);
+create index if not exists idx_forum_posts_author on public.forum_posts(author_id);
+create index if not exists idx_forum_posts_visibility on public.forum_posts(visibility);
+create index if not exists idx_forum_comments_post on public.forum_comments(post_id);
+create index if not exists idx_forum_post_likes_post on public.forum_post_likes(post_id);
+
+alter table public.user_follows enable row level security;
+alter table public.forum_posts enable row level security;
+alter table public.forum_comments enable row level security;
+alter table public.forum_post_likes enable row level security;
+
+-- Helper: True when current user and target_user follow each other
+create or replace function public.are_friends(target_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return exists (
+    select 1 from public.user_follows
+    where follower_id = auth.uid() and following_id = target_user_id
+  ) and exists (
+    select 1 from public.user_follows
+    where follower_id = target_user_id and following_id = auth.uid()
+  );
+end;
+$$;
+
+-- USER FOLLOWS POLICIES
+drop policy if exists "Authenticated users can view follows" on public.user_follows;
+create policy "Authenticated users can view follows"
+  on public.user_follows for select
+  using (auth.uid() is not null);
+
+drop policy if exists "Users can follow others as themselves" on public.user_follows;
+create policy "Users can follow others as themselves"
+  on public.user_follows for insert
+  with check (follower_id = auth.uid() and following_id <> auth.uid());
+
+drop policy if exists "Users can unfollow others" on public.user_follows;
+create policy "Users can unfollow others"
+  on public.user_follows for delete
+  using (follower_id = auth.uid());
+
+-- FORUM POSTS POLICIES
+drop policy if exists "Read posts visible to everyone, announcements, own, or mutual friends" on public.forum_posts;
+create policy "Read posts visible to everyone, announcements, own, or mutual friends"
+  on public.forum_posts for select
+  using (
+    visibility in ('everyone'::public.post_visibility, 'announcement'::public.post_visibility)
+    or author_id = auth.uid()
+    or (visibility = 'friends'::public.post_visibility and public.are_friends(author_id))
+  );
+
+drop policy if exists "Students and staff can publish forum posts; only staff/managers post announcements" on public.forum_posts;
+create policy "Students and staff can publish forum posts; only staff/managers post announcements"
+  on public.forum_posts for insert
+  with check (
+    author_id = auth.uid()
+    and (
+      visibility in ('everyone'::public.post_visibility, 'friends'::public.post_visibility)
+      or (visibility = 'announcement'::public.post_visibility and public.is_staff())
+    )
+  );
+
+drop policy if exists "Authors and staff can update forum posts" on public.forum_posts;
+create policy "Authors and staff can update forum posts"
+  on public.forum_posts for update
+  using (author_id = auth.uid() or public.is_staff());
+
+drop policy if exists "Authors and staff can delete forum posts" on public.forum_posts;
+create policy "Authors and staff can delete forum posts"
+  on public.forum_posts for delete
+  using (author_id = auth.uid() or public.is_staff());
+
+-- FORUM COMMENTS POLICIES
+drop policy if exists "Authenticated users can read forum comments" on public.forum_comments;
+create policy "Authenticated users can read forum comments"
+  on public.forum_comments for select
+  using (auth.uid() is not null);
+
+drop policy if exists "Authenticated users can create forum comments" on public.forum_comments;
+create policy "Authenticated users can create forum comments"
+  on public.forum_comments for insert
+  with check (author_id = auth.uid());
+
+drop policy if exists "Authors and staff can delete forum comments" on public.forum_comments;
+create policy "Authors and staff can delete forum comments"
+  on public.forum_comments for delete
+  using (author_id = auth.uid() or public.is_staff());
+
+-- FORUM LIKES POLICIES
+drop policy if exists "Authenticated users can view post likes" on public.forum_post_likes;
+create policy "Authenticated users can view post likes"
+  on public.forum_post_likes for select
+  using (auth.uid() is not null);
+
+drop policy if exists "Users can like posts as themselves" on public.forum_post_likes;
+create policy "Users can like posts as themselves"
+  on public.forum_post_likes for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists "Users can unlike their own likes" on public.forum_post_likes;
+create policy "Users can unlike their own likes"
+  on public.forum_post_likes for delete
+  using (user_id = auth.uid());
+

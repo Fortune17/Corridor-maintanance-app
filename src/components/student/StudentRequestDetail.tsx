@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
-import { MaintenanceRequest, RequestStatus } from '../../types/database';
+import React, { useState, useRef } from 'react';
+import { MaintenanceRequest, RequestAttachment, RequestStatus } from '../../types/database';
 import { db } from '../../services/db';
 import { StatusBadge } from '../common/StatusBadge';
 import { PriorityBadge } from '../common/PriorityBadge';
-import { 
-  ArrowLeft, 
-  Clock, 
-  MapPin, 
-  User, 
-  Send, 
-  CheckCircle2, 
-  RotateCcw, 
-  Image as ImageIcon,
+import { ACCESS_WINDOW_SUGGESTIONS, QUICK_REPLY_TEMPLATES } from '../../data/studentHelpers';
+import {
+  ArrowLeft,
+  Clock,
+  MapPin,
+  Send,
+  CheckCircle2,
+  RotateCcw,
   History,
   MessageSquare,
   AlertCircle,
-  FileCheck2
+  FileCheck2,
+  Upload,
+  Maximize2,
+  X,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 interface StudentRequestDetailProps {
@@ -43,8 +47,19 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'history'>('details');
   const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Follow-up photo upload & lightbox inspection
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<RequestAttachment | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Inline preferred access window editing
+  const [isEditingAccess, setIsEditingAccess] = useState(false);
+  const [editedAccessTime, setEditedAccessTime] = useState(request.preferred_access_time || '');
 
   const comments = db.getComments(request.id);
   const attachments = db.getAttachments(request.id);
@@ -67,13 +82,13 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         db.addComment(request.id, commentText, 'student_visible');
         setCommentText('');
         setIsSendingComment(false);
-        setFeedback('Comment posted successfully.');
+        setFeedback('Message sent to maintenance desk.');
         onRefresh();
       } catch (err: any) {
         setIsSendingComment(false);
-        setFeedback(err.message || 'Failed to post comment', 'error');
+        setFeedback(err.message || 'Failed to post message', 'error');
       }
-    }, 200);
+    }, 150);
   };
 
   const handleConfirmResolved = () => {
@@ -105,6 +120,77 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
     }
   };
 
+  const handleWithdrawSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      db.withdrawSubmittedRequest(
+        request.id,
+        withdrawReason.trim() || 'Issue resolved on my own or submitted in error.'
+      );
+      setShowWithdrawModal(false);
+      setWithdrawReason('');
+      setFeedback('Request withdrawn and closed.');
+      onRefresh();
+    } catch (err: any) {
+      setFeedback(err.message || 'Could not withdraw request', 'error');
+    }
+  };
+
+  const handleSaveAccessTime = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      db.updateStudentAccessTime(request.id, editedAccessTime);
+      setIsEditingAccess(false);
+      setFeedback('Preferred room access window updated.');
+      onRefresh();
+    } catch (err: any) {
+      setFeedback(err.message || 'Failed to update access window', 'error');
+    }
+  };
+
+  const handleFollowUpPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFeedback('Please select a valid image file (JPG, PNG, WEBP).', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFeedback('Image exceeds the 5 MB limit. Please upload a smaller photo.', 'error');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        db.addAttachment(request.id, {
+          file_name: file.name,
+          storage_path: reader.result as string,
+          file_type: file.type,
+          file_size: file.size,
+          is_completion_proof: false,
+        });
+        setFeedback('Follow-up photo uploaded and shared with maintenance staff.');
+        onRefresh();
+      } catch (err: any) {
+        setFeedback(err.message || 'Failed to upload photo', 'error');
+      } finally {
+        setIsUploadingPhoto(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.onerror = () => {
+      setIsUploadingPhoto(false);
+      setFeedback('Could not read the selected image file.', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const canModifyAccess = request.status !== 'Resolved' && request.status !== 'Closed';
+
   // Determine active workflow step index
   const currentStepIndex = WORKFLOW_STEPS.indexOf(
     request.status === 'Awaiting Parts' ? 'In Progress' : request.status
@@ -115,7 +201,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
       {/* Action Feedback Banner */}
       {actionFeedback && (
         <div
-          className={`p-3 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 shadow-xs animate-in fade-in slide-in-from-top-2 ${
+          className={`p-3 rounded-lg border text-xs font-semibold flex items-center justify-between gap-2 shadow-xs ${
             actionFeedback.type === 'error'
               ? 'bg-red-50 text-red-800 border-red-200'
               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
@@ -132,6 +218,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
           <button
             onClick={() => setActionFeedback(null)}
             className="text-slate-400 hover:text-slate-700 p-1"
+            aria-label="Dismiss notification"
           >
             &times;
           </button>
@@ -149,8 +236,8 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs sm:text-sm font-bold text-sky-900 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs sm:text-sm font-bold text-sky-900 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 tabular-nums">
                 {request.reference_number}
               </span>
               <StatusBadge status={request.status} />
@@ -163,19 +250,29 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         </div>
 
         {/* Action Buttons for Student */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {request.status === 'Submitted' && (
+            <button
+              onClick={() => setShowWithdrawModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-red-700 hover:bg-red-50 border border-slate-300 hover:border-red-200 rounded-md transition-colors whitespace-nowrap shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Withdraw Request</span>
+            </button>
+          )}
+
           {request.status === 'Resolved' && (
             <>
               <button
                 onClick={() => setShowConfirmModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition-colors shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-md transition-colors shadow-xs whitespace-nowrap shrink-0"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Confirm Fixed & Close</span>
               </button>
               <button
                 onClick={() => setShowReopenModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-md transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-md transition-colors whitespace-nowrap shrink-0"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
                 <span>Still Unresolved?</span>
@@ -186,7 +283,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
           {request.status === 'Closed' && (
             <button
               onClick={() => setShowReopenModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reopen Request</span>
@@ -195,7 +292,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         </div>
       </div>
 
-      {/* Resolution Banner if Resolved or Closed */}
+      {/* Resolution Banner if Resolved */}
       {request.status === 'Resolved' && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-900">
           <div className="flex items-start gap-3">
@@ -211,7 +308,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
           </div>
           <button
             onClick={() => setShowConfirmModal(true)}
-            className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-md whitespace-nowrap shadow-xs"
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-md whitespace-nowrap shrink-0 shadow-xs"
           >
             Confirm Issue Fixed
           </button>
@@ -237,7 +334,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
               return (
                 <div key={step} className="flex flex-col sm:items-center text-left sm:text-center">
                   <div
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold tabular-nums transition-colors ${
                       isAwaitingParts
                         ? 'bg-orange-500 text-white ring-4 ring-orange-100'
                         : isCurrent
@@ -274,10 +371,10 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
       </div>
 
       {/* Tabs: Details / Comments / History */}
-      <div className="flex items-center gap-1 border-b border-slate-200">
+      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('details')}
-          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
             activeTab === 'details'
               ? 'border-sky-900 text-sky-900 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -287,7 +384,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('comments')}
-          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
             activeTab === 'comments'
               ? 'border-sky-900 text-sky-900 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -295,13 +392,13 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         >
           <MessageSquare className="w-4 h-4" />
           <span>Messages & Notes</span>
-          <span className="bg-slate-100 text-slate-700 text-[11px] px-1.5 py-0.2 rounded font-mono">
+          <span className="bg-slate-100 text-slate-700 text-[11px] px-1.5 py-0.2 rounded font-mono tabular-nums">
             {comments.length}
           </span>
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
             activeTab === 'history'
               ? 'border-sky-900 text-sky-900 font-semibold'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -309,7 +406,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         >
           <History className="w-4 h-4" />
           <span>Audit Log</span>
-          <span className="bg-slate-100 text-slate-700 text-[11px] px-1.5 py-0.2 rounded font-mono">
+          <span className="bg-slate-100 text-slate-700 text-[11px] px-1.5 py-0.2 rounded font-mono tabular-nums">
             {history.length}
           </span>
         </button>
@@ -342,30 +439,56 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
               )}
 
               {/* Photos & Attachments */}
-              <div className="pt-3 border-t border-slate-100">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2.5 flex items-center justify-between">
-                  <span>Attached Photos & Evidence</span>
-                  <span className="text-[11px] text-slate-400 font-normal">
-                    {attachments.length} attachment(s)
-                  </span>
-                </h3>
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Attached Photos & Evidence
+                    </h3>
+                    <span className="text-[11px] text-slate-400 tabular-nums">
+                      {attachments.length} attachment(s) · Click any photo to inspect full size
+                    </span>
+                  </div>
+
+                  {request.status !== 'Closed' && (
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-md cursor-pointer transition-colors whitespace-nowrap shrink-0">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{isUploadingPhoto ? 'Uploading...' : 'Add Follow-Up Photo'}</span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingPhoto}
+                        onChange={handleFollowUpPhotoUpload}
+                        className="sr-only"
+                      />
+                    </label>
+                  )}
+                </div>
 
                 {attachments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No photos attached to this ticket.</p>
+                  <p className="text-xs text-slate-400 italic">
+                    No photos attached yet. You can upload a photo of the issue at any time while the ticket is open.
+                  </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {attachments.map((att) => (
-                      <div
+                      <button
+                        type="button"
                         key={att.id}
-                        className="border border-slate-200 rounded-md overflow-hidden bg-slate-50 group hover:border-sky-300 transition-colors"
+                        onClick={() => setLightboxImage(att)}
+                        className="text-left border border-slate-200 rounded-md overflow-hidden bg-slate-50 group hover:border-sky-400 transition-colors focus:outline-hidden focus:ring-2 focus:ring-sky-600"
                       >
                         <div className="h-44 bg-slate-100 overflow-hidden relative">
                           <img
                             src={att.storage_path}
                             alt={att.file_name}
-                            className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                             referrerPolicy="no-referrer"
                           />
+                          <span className="absolute bottom-2 right-2 bg-slate-900/70 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </span>
                           {att.is_completion_proof && (
                             <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                               Completion Proof
@@ -380,7 +503,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                             {att.uploaded_by_name}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -398,7 +521,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
               <div>
                 <span className="text-slate-500 block mb-0.5">Residence Location</span>
                 <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-sky-700" />
+                  <MapPin className="w-3.5 h-3.5 text-sky-700 shrink-0" />
                   {request.building} · {request.room_number}
                 </span>
               </div>
@@ -410,7 +533,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
 
               <div>
                 <span className="text-slate-500 block mb-0.5">Submitted Date</span>
-                <span className="font-mono text-slate-800">
+                <span className="font-mono text-slate-800 tabular-nums">
                   {new Date(request.created_at).toLocaleString([], {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -418,19 +541,84 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                 </span>
               </div>
 
-              {request.preferred_access_time && (
-                <div>
-                  <span className="text-slate-500 block mb-0.5">Preferred Access Window</span>
-                  <span className="font-medium text-slate-800 bg-sky-50 p-1.5 rounded block">
+              {/* Editable Preferred Access Window */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-slate-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Preferred Access Window
+                  </span>
+                  {canModifyAccess && !isEditingAccess && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditedAccessTime(request.preferred_access_time || '');
+                        setIsEditingAccess(true);
+                      }}
+                      className="text-sky-700 hover:text-sky-900 font-semibold flex items-center gap-1 text-[11px]"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>{request.preferred_access_time ? 'Edit' : 'Set'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {isEditingAccess ? (
+                  <form onSubmit={handleSaveAccessTime} className="space-y-2 p-2.5 bg-slate-50 border border-slate-200 rounded-md">
+                    <input
+                      type="text"
+                      value={editedAccessTime}
+                      onChange={(e) => setEditedAccessTime(e.target.value)}
+                      placeholder="e.g. Weekdays after 14:00"
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded focus:outline-hidden focus:ring-2 focus:ring-sky-600"
+                    />
+                    <div className="flex flex-wrap gap-1">
+                      {ACCESS_WINDOW_SUGGESTIONS.map((win) => (
+                        <button
+                          key={win}
+                          type="button"
+                          onClick={() => setEditedAccessTime(win)}
+                          className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                            editedAccessTime === win
+                              ? 'bg-sky-900 text-white border-sky-900'
+                              : 'bg-white text-slate-600 border-slate-300 hover:border-sky-400'
+                          }`}
+                        >
+                          {win}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingAccess(false)}
+                        className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-200 rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-2.5 py-1 text-[11px] font-semibold bg-sky-900 hover:bg-sky-800 text-white rounded"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                ) : request.preferred_access_time ? (
+                  <span className="font-medium text-slate-800 bg-sky-50 px-2 py-1.5 rounded border border-sky-100 block">
                     {request.preferred_access_time}
                   </span>
-                </div>
-              )}
+                ) : (
+                  <span className="text-slate-400 italic block">
+                    None specified
+                  </span>
+                )}
+              </div>
 
               {request.estimated_completion && (
                 <div>
                   <span className="text-slate-500 block mb-0.5">Target Completion</span>
-                  <span className="font-mono text-slate-800 font-semibold">
+                  <span className="font-mono text-slate-800 font-semibold tabular-nums">
                     {new Date(request.estimated_completion).toLocaleDateString([], {
                       month: 'short',
                       day: 'numeric',
@@ -445,7 +633,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                 <span className="text-slate-500 block mb-1">Assigned Maintenance Staff</span>
                 {request.assigned_to_name ? (
                   <div className="flex items-center gap-2 p-2 bg-slate-50 rounded border border-slate-200">
-                    <div className="w-7 h-7 rounded-full bg-sky-800 text-white font-bold text-xs flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-sky-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
                       {request.assigned_to_name[0]}
                     </div>
                     <div>
@@ -476,10 +664,10 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
             {comments.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
-                No comments on this request yet. Use the form below to message the maintenance desk.
+                No comments on this request yet. Tap a quick reply below or type a message to the maintenance desk.
               </div>
             ) : (
               comments.map((comm) => {
@@ -494,21 +682,16 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 text-xs">
                         <span className="font-bold text-slate-900">
                           {comm.author_name}
                         </span>
-                        <span
-                          className={`text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded ${
-                            isStudent
-                              ? 'bg-sky-200 text-sky-900'
-                              : 'bg-amber-100 text-amber-900'
-                          }`}
-                        >
+                        <span className="text-slate-300">·</span>
+                        <span className="text-[11px] uppercase font-semibold tracking-wider text-slate-500">
                           {comm.author_role}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-slate-400 font-mono tabular-nums">
                         {new Date(comm.created_at).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -524,8 +707,27 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
             )}
           </div>
 
+          {/* 1-Tap Quick Reply Suggestions */}
+          <div className="pt-3 border-t border-slate-100 space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block">
+              Quick Replies
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_REPLY_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl}
+                  type="button"
+                  onClick={() => setCommentText(tpl)}
+                  className="text-xs px-2.5 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-slate-700 hover:text-sky-900 transition-colors text-left"
+                >
+                  {tpl}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Add Comment Input */}
-          <form onSubmit={handleSendComment} className="pt-3 border-t border-slate-200 flex gap-2">
+          <form onSubmit={handleSendComment} className="pt-2 flex gap-2">
             <input
               type="text"
               value={commentText}
@@ -536,7 +738,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
             <button
               type="submit"
               disabled={isSendingComment || !commentText.trim()}
-              className="px-4 py-2 bg-sky-900 hover:bg-sky-800 text-white text-xs sm:text-sm font-semibold rounded-md flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-sky-900 hover:bg-sky-800 text-white text-xs sm:text-sm font-semibold rounded-md flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Send</span>
@@ -553,13 +755,13 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
           </h3>
 
           <div className="space-y-4">
-            {history.map((h, i) => (
+            {history.map((h) => (
               <div key={h.id} className="flex items-start gap-3 text-xs">
                 <div className="w-2 h-2 rounded-full bg-sky-700 mt-1.5 shrink-0" />
                 <div className="flex-1 pb-3 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-slate-900">{h.action}</span>
-                    <span className="font-mono text-slate-400 text-[11px]">
+                    <span className="font-mono text-slate-400 text-[11px] tabular-nums shrink-0">
                       {new Date(h.created_at).toLocaleString([], {
                         dateStyle: 'short',
                         timeStyle: 'short',
@@ -567,7 +769,7 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                     </span>
                   </div>
                   <p className="text-slate-600 mt-0.5">
-                    Updated by <strong className="font-medium text-slate-800">{h.actor_name}</strong> ({h.actor_role})
+                    Updated by <strong className="font-medium text-slate-800">{h.actor_name}</strong> · {h.actor_role}
                   </p>
                   {h.notes && (
                     <p className="text-slate-500 italic mt-1 bg-slate-50 p-1.5 rounded">
@@ -577,6 +779,47 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Full-Size Image Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xs"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl border border-slate-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="min-w-0 pr-4">
+                <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
+                  {lightboxImage.file_name}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Uploaded by {lightboxImage.uploaded_by_name} ·{' '}
+                  {new Date(lightboxImage.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-md"
+                aria-label="Close photo preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="bg-slate-900 flex items-center justify-center max-h-[75vh] overflow-auto">
+              <img
+                src={lightboxImage.storage_path}
+                alt={lightboxImage.file_name}
+                className="max-w-full max-h-[75vh] object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -622,9 +865,49 @@ export const StudentRequestDetail: React.FC<StudentRequestDetailProps> = ({
         </div>
       )}
 
+      {/* Withdraw Request Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-900">
+              Withdraw Maintenance Request
+            </h3>
+            <p className="text-xs text-slate-600">
+              No longer need repairs for <strong>{request.reference_number}</strong>? Withdrawing closes this ticket before technician dispatch.
+            </p>
+
+            <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+              <input
+                type="text"
+                value={withdrawReason}
+                onChange={(e) => setWithdrawReason(e.target.value)}
+                placeholder="Optional reason (e.g. Issue resolved itself, duplicate ticket)"
+                className="w-full p-2.5 text-xs sm:text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-600 focus:outline-hidden"
+              />
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-md"
+                >
+                  Keep Open
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs font-semibold bg-red-700 hover:bg-red-800 text-white rounded-md transition-colors"
+                >
+                  Withdraw & Close
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">

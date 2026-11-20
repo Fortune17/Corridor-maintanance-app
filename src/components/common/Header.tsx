@@ -7,11 +7,11 @@ import {
   Bell, 
   LogOut, 
   User, 
-  ShieldCheck, 
-  GraduationCap,
   Menu,
   X,
-  Presentation
+  Presentation,
+  Pencil,
+  Mic
 } from 'lucide-react';
 import { NotificationModal } from './NotificationModal';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -23,6 +23,8 @@ interface HeaderProps {
   onOpenNewRequestModal?: () => void;
   onSelectRequest: (requestId: string) => void;
   onOpenPitchDeck?: () => void;
+  onOpenProfileModal?: () => void;
+  onOpenVoiceModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,6 +34,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewRequestModal,
   onSelectRequest,
   onOpenPitchDeck,
+  onOpenProfileModal,
+  onOpenVoiceModal,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -78,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Zone 2: Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-slate-600">
             {isStaff ? (
               <>
                 <button
@@ -89,7 +93,27 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'border-transparent text-slate-600'
                   }`}
                 >
-                  All Requests
+                  Requests
+                </button>
+                <button
+                  onClick={() => setActiveTab('forum')}
+                  className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 ${
+                    activeTab === 'forum'
+                      ? 'border-sky-800 text-sky-900 font-semibold'
+                      : 'border-transparent text-slate-600'
+                  }`}
+                >
+                  Announcements
+                </button>
+                <button
+                  onClick={() => setActiveTab('people')}
+                  className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 ${
+                    activeTab === 'people'
+                      ? 'border-sky-800 text-sky-900 font-semibold'
+                      : 'border-transparent text-slate-600'
+                  }`}
+                >
+                  Profiles
                 </button>
                 <button
                   onClick={() => setActiveTab('analytics')}
@@ -99,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'border-transparent text-slate-600'
                   }`}
                 >
-                  Analytics & Reports
+                  Analytics
                 </button>
                 <button
                   onClick={() => setActiveTab('staff_team')}
@@ -109,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'border-transparent text-slate-600'
                   }`}
                 >
-                  Staff Team
+                  Team
                 </button>
               </>
             ) : (
@@ -122,16 +146,28 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'border-transparent text-slate-600'
                   }`}
                 >
-                  My Requests
+                  Requests
                 </button>
-                {onOpenNewRequestModal && (
-                  <button
-                    onClick={onOpenNewRequestModal}
-                    className="hover:text-sky-800 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 border-transparent text-slate-600"
-                  >
-                    Submit Request
-                  </button>
-                )}
+                <button
+                  onClick={() => setActiveTab('forum')}
+                  className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 ${
+                    activeTab === 'forum'
+                      ? 'border-sky-800 text-sky-900 font-semibold'
+                      : 'border-transparent text-slate-600'
+                  }`}
+                >
+                  Forum
+                </button>
+                <button
+                  onClick={() => setActiveTab('people')}
+                  className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 ${
+                    activeTab === 'people'
+                      ? 'border-sky-800 text-sky-900 font-semibold'
+                      : 'border-transparent text-slate-600'
+                  }`}
+                >
+                  People
+                </button>
                 <button
                   onClick={() => setActiveTab('residence_info')}
                   className={`hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 ${
@@ -140,14 +176,35 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'border-transparent text-slate-600'
                   }`}
                 >
-                  Residence Guide
+                  Guide
                 </button>
+                {onOpenNewRequestModal && (
+                  <button
+                    onClick={onOpenNewRequestModal}
+                    className="hover:text-sky-800 transition-colors whitespace-nowrap shrink-0 pb-1 border-b-2 border-transparent text-slate-600"
+                  >
+                    Report
+                  </button>
+                )}
               </>
             )}
           </nav>
 
           {/* Zone 3: Actions, Notifications & Account */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Live Voice Conversation Button */}
+            {onOpenVoiceModal && (
+              <button
+                type="button"
+                onClick={onOpenVoiceModal}
+                className="p-2 text-sky-800 hover:text-sky-950 hover:bg-sky-50 rounded-lg transition-colors"
+                title="Live Voice Assistant"
+                aria-label="Open live voice conversation"
+              >
+                <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
+
             {/* PWA Install Button */}
             <PWAInstallButton variant="header" />
 
@@ -155,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({
             {!isStaff && onOpenPitchDeck && (
               <button
                 onClick={onOpenPitchDeck}
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-900 text-amber-300 hover:bg-slate-800 transition-colors border border-slate-700 shadow-2xs"
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-900 text-amber-300 hover:bg-slate-800 transition-colors border border-slate-700 shadow-2xs whitespace-nowrap shrink-0"
                 title="Open Residence Owner Pitch Deck & Commercial Proposal"
               >
                 <Presentation className="w-3.5 h-3.5 text-amber-400" />
@@ -178,35 +235,74 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* User Profile Pill / Identity */}
-            <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs overflow-hidden shrink-0">
-                {currentUser.avatar_url ? (
-                  <img
-                    src={currentUser.avatar_url}
-                    alt={currentUser.full_name}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <User className="w-4 h-4 text-slate-500" />
-                )}
-              </div>
-              <div className="text-left leading-tight hidden lg:block">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-slate-900 truncate max-w-[130px]">
-                    {currentUser.full_name}
-                  </span>
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded ${
-                    isStaff ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'
-                  }`}>
-                    {isStaff ? 'Staff' : 'Student'}
+            {onOpenProfileModal ? (
+              <button
+                type="button"
+                onClick={onOpenProfileModal}
+                className="hidden sm:flex items-center gap-2.5 pl-2 pr-2 py-1 border-l border-slate-200 hover:bg-slate-50 rounded-r-lg transition-colors group"
+                title="Update room, block & contact details"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs overflow-hidden shrink-0">
+                  {currentUser.avatar_url ? (
+                    <img
+                      src={currentUser.avatar_url}
+                      alt={currentUser.full_name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-500" />
+                  )}
+                </div>
+                <div className="text-left leading-tight hidden lg:block">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-900 truncate max-w-[130px] group-hover:text-sky-800">
+                      {currentUser.full_name}
+                    </span>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded ${
+                      isStaff ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'
+                    }`}>
+                      {isStaff ? 'Staff' : 'Student'}
+                    </span>
+                    <Pencil className="w-3 h-3 text-slate-400 group-hover:text-sky-700" />
+                  </div>
+                  <span className="text-[11px] text-slate-500 block truncate max-w-[155px]">
+                    {currentUser.building ? `${currentUser.building.split(' ')[0]} ${currentUser.building.split(' ')[1]} · ` : ''}
+                    {currentUser.room_number || currentUser.email}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 block truncate max-w-[140px]">
-                  {currentUser.room_number || currentUser.email}
-                </span>
+              </button>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2.5 pl-2 border-l border-slate-200">
+                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-medium text-xs overflow-hidden shrink-0">
+                  {currentUser.avatar_url ? (
+                    <img
+                      src={currentUser.avatar_url}
+                      alt={currentUser.full_name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-500" />
+                  )}
+                </div>
+                <div className="text-left leading-tight hidden lg:block">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-900 truncate max-w-[130px]">
+                      {currentUser.full_name}
+                    </span>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded ${
+                      isStaff ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'
+                    }`}>
+                      {isStaff ? 'Staff' : 'Student'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 block truncate max-w-[140px]">
+                    {currentUser.room_number || currentUser.email}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Logout / Switch */}
             <button
@@ -232,16 +328,31 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-2 pb-4 space-y-2">
-            <div className="py-2 border-b border-slate-100 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs">
-                {currentUser.full_name[0]}
+            <div className="py-2 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs shrink-0">
+                  {currentUser.full_name[0]}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{currentUser.full_name}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {currentUser.role === 'staff' ? 'Authorized Maintenance Staff' : `${currentUser.student_number || 'Student'} · ${currentUser.room_number || ''}`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{currentUser.full_name}</p>
-                <p className="text-xs text-slate-500">
-                  {currentUser.role === 'staff' ? 'Authorized Maintenance Staff' : `${currentUser.student_number || 'Student'} · ${currentUser.room_number || ''}`}
-                </p>
-              </div>
+              {onOpenProfileModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenProfileModal();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-2.5 py-1 text-xs font-semibold text-sky-800 bg-sky-50 border border-sky-200 rounded-md shrink-0 flex items-center gap-1"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit Room</span>
+                </button>
+              )}
             </div>
 
             <div className="space-y-1 pt-1">
@@ -257,6 +368,28 @@ export const Header: React.FC<HeaderProps> = ({
                     }`}
                   >
                     All Maintenance Requests
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('forum');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md ${
+                      activeTab === 'forum' ? 'bg-sky-50 text-sky-900' : 'text-slate-700'
+                    }`}
+                  >
+                    Forum & Announcements
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('people');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md ${
+                      activeTab === 'people' ? 'bg-sky-50 text-sky-900' : 'text-slate-700'
+                    }`}
+                  >
+                    Resident Profiles
                   </button>
                   <button
                     onClick={() => {
@@ -294,6 +427,28 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     My Requests
                   </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('forum');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md ${
+                      activeTab === 'forum' ? 'bg-sky-50 text-sky-900' : 'text-slate-700'
+                    }`}
+                  >
+                    Community Forum & Announcements
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('people');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md ${
+                      activeTab === 'people' ? 'bg-sky-50 text-sky-900' : 'text-slate-700'
+                    }`}
+                  >
+                    Profiles & Friends
+                  </button>
                   {onOpenNewRequestModal && (
                     <button
                       onClick={() => {
@@ -317,6 +472,19 @@ export const Header: React.FC<HeaderProps> = ({
                     Residence Policy & Guide
                   </button>
                 </>
+              )}
+
+              {onOpenVoiceModal && (
+                <button
+                  onClick={() => {
+                    onOpenVoiceModal();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-medium rounded-md flex items-center gap-2 text-sky-900 bg-sky-50"
+                >
+                  <Mic className="w-4 h-4 text-sky-700" />
+                  <span>Live Voice Assistant</span>
+                </button>
               )}
 
               {!isStaff && onOpenPitchDeck && (

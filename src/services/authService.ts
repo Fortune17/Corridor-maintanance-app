@@ -84,8 +84,11 @@ class AuthService {
       await supabase.from('profiles').upsert([profile], { onConflict: 'id' });
     }
 
-    if (requiredRole && profile.role !== requiredRole) {
-      throw new Error(`This account has role '${profile.role}'. Please switch to the ${profile.role} login tab.`);
+    if (requiredRole === 'student' && profile.role !== 'student') {
+      throw new Error(`This account has role '${profile.role}'. Please switch to the staff login tab.`);
+    }
+    if (requiredRole === 'staff' && profile.role !== 'staff' && profile.role !== 'admin') {
+      throw new Error(`This account has role '${profile.role}'. Please switch to the student login tab.`);
     }
 
     this.saveSession(profile);

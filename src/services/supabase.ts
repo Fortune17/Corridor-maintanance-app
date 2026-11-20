@@ -6,6 +6,10 @@ import {
   RequestAttachment,
   RequestHistory,
   AppNotification,
+  ForumPost,
+  ForumComment,
+  UserFollow,
+  ForumPostLike,
 } from '../types/database';
 
 export interface SupabaseConfig {
@@ -132,6 +136,41 @@ class SupabaseService {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'notifications' },
+          () => {
+            this.notifyChange();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles' },
+          () => {
+            this.notifyChange();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'forum_posts' },
+          () => {
+            this.notifyChange();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'forum_comments' },
+          () => {
+            this.notifyChange();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'user_follows' },
+          () => {
+            this.notifyChange();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'forum_post_likes' },
           () => {
             this.notifyChange();
           }
@@ -323,6 +362,10 @@ class SupabaseService {
     attachments?: RequestAttachment[];
     history?: RequestHistory[];
     notifications?: AppNotification[];
+    forumPosts?: ForumPost[];
+    forumComments?: ForumComment[];
+    userFollows?: UserFollow[];
+    forumPostLikes?: ForumPostLike[];
   } | null> {
     if (!this.client) return null;
 
@@ -334,6 +377,10 @@ class SupabaseService {
         attachmentsRes,
         historyRes,
         notificationsRes,
+        forumPostsRes,
+        forumCommentsRes,
+        userFollowsRes,
+        forumPostLikesRes,
       ] = await Promise.all([
         this.client.from('profiles').select('*'),
         this.client.from('maintenance_requests').select('*').order('created_at', { ascending: false }),
@@ -341,15 +388,23 @@ class SupabaseService {
         this.client.from('request_attachments').select('*').order('created_at', { ascending: false }),
         this.client.from('request_history').select('*').order('created_at', { ascending: false }),
         this.client.from('notifications').select('*').order('created_at', { ascending: false }),
+        this.client.from('forum_posts').select('*').order('created_at', { ascending: false }),
+        this.client.from('forum_comments').select('*').order('created_at', { ascending: true }),
+        this.client.from('user_follows').select('*'),
+        this.client.from('forum_post_likes').select('*'),
       ]);
 
       return {
-        profiles: profilesRes.data || undefined,
-        requests: requestsRes.data || undefined,
-        comments: commentsRes.data || undefined,
-        attachments: attachmentsRes.data || undefined,
-        history: historyRes.data || undefined,
-        notifications: notificationsRes.data || undefined,
+        profiles: !profilesRes.error && profilesRes.data ? profilesRes.data : undefined,
+        requests: !requestsRes.error && requestsRes.data ? requestsRes.data : undefined,
+        comments: !commentsRes.error && commentsRes.data ? commentsRes.data : undefined,
+        attachments: !attachmentsRes.error && attachmentsRes.data ? attachmentsRes.data : undefined,
+        history: !historyRes.error && historyRes.data ? historyRes.data : undefined,
+        notifications: !notificationsRes.error && notificationsRes.data ? notificationsRes.data : undefined,
+        forumPosts: !forumPostsRes.error && forumPostsRes.data ? forumPostsRes.data : undefined,
+        forumComments: !forumCommentsRes.error && forumCommentsRes.data ? forumCommentsRes.data : undefined,
+        userFollows: !userFollowsRes.error && userFollowsRes.data ? userFollowsRes.data : undefined,
+        forumPostLikes: !forumPostLikesRes.error && forumPostLikesRes.data ? forumPostLikesRes.data : undefined,
       };
     } catch (e) {
       console.warn('Error fetching all data from Supabase:', e);

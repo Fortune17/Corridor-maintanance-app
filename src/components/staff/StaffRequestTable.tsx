@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MaintenanceRequest, RequestStatus, RequestPriority, RequestCategory, BuildingBlock } from '../../types/database';
+import { MaintenanceRequest, RequestStatus, RequestPriority, RequestCategory, BUILDING_BLOCKS } from '../../types/database';
 import { db } from '../../services/db';
 import { StatusBadge } from '../common/StatusBadge';
 import { PriorityBadge } from '../common/PriorityBadge';
@@ -317,12 +317,11 @@ export const StaffRequestTable: React.FC<StaffRequestTableProps> = ({
               className="w-full p-1.5 border border-slate-300 rounded-md bg-white truncate"
             >
               <option value="all">All Buildings</option>
-              <option value="Block A (Oak Hall)">Block A (Oak)</option>
-              <option value="Block B (Pine Hall)">Block B (Pine)</option>
-              <option value="Block C (Maple Hall)">Block C (Maple)</option>
-              <option value="Block D (Cedar Hall)">Block D (Cedar)</option>
-              <option value="Block E (Willow Annex)">Block E (Willow)</option>
-              <option value="Communal Facilities">Communal</option>
+              {BUILDING_BLOCKS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
           </div>
 

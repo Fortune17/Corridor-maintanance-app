@@ -6,18 +6,23 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './services/db';
 import { Profile } from './types/database';
+import { IssuePreset } from './data/studentHelpers';
 import { Header } from './components/common/Header';
 import { LoginForm } from './components/auth/LoginForm';
 import { StudentDashboard } from './components/student/StudentDashboard';
 import { StudentRequestDetail } from './components/student/StudentRequestDetail';
 import { NewRequestModal } from './components/student/NewRequestModal';
+import { StudentProfileModal } from './components/student/StudentProfileModal';
 import { ResidenceInfo } from './components/student/ResidenceInfo';
+import { ResidenceForum } from './components/social/ResidenceForum';
+import { PeopleDirectory } from './components/social/PeopleDirectory';
 import { StaffRequestTable } from './components/staff/StaffRequestTable';
 import { StaffRequestDetail } from './components/staff/StaffRequestDetail';
 import { StaffAnalytics } from './components/staff/StaffAnalytics';
 import { StaffTeam } from './components/staff/StaffTeam';
 import { NotificationToast } from './components/common/NotificationToast';
 import { PitchDeckModal } from './components/presentation/PitchDeckModal';
+import { VoiceConversationModal } from './components/common/VoiceConversationModal';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 
 // Helper to determine initial tab based on role and stored preference
@@ -26,10 +31,10 @@ const getInitialTab = (user: Profile | null): string => {
   if (!user) return saved || 'student_requests';
   const isStaff = user.role === 'staff' || user.role === 'admin';
   if (isStaff) {
-    const validStaffTabs = ['staff_requests', 'analytics', 'staff_team'];
+    const validStaffTabs = ['staff_requests', 'forum', 'people', 'analytics', 'staff_team'];
     return saved && validStaffTabs.includes(saved) ? saved : 'staff_requests';
   } else {
-    const validStudentTabs = ['student_requests', 'residence_info'];
+    const validStudentTabs = ['student_requests', 'forum', 'people', 'residence_info'];
     return saved && validStudentTabs.includes(saved) ? saved : 'student_requests';
   }
 };
@@ -47,6 +52,9 @@ export default function App() {
   const [activeTab, setActiveTabState] = useState<string>(() => getInitialTab(db.getCurrentUser()));
   const [selectedRequestId, setSelectedRequestIdState] = useState<string | null>(() => getInitialRequestId());
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
+  const [newRequestPreset, setNewRequestPreset] = useState<IssuePreset | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isPitchDeckOpen, setIsPitchDeckOpen] = useState(false);
   const [, setTick] = useState(0);
 
@@ -83,6 +91,11 @@ export default function App() {
     handleSelectRequest(null);
   };
 
+  const openNewRequestModal = (preset?: IssuePreset) => {
+    setNewRequestPreset(preset || null);
+    setIsNewRequestModalOpen(true);
+  };
+
   // If not logged in, show login page
   if (!currentUser) {
     return (
@@ -111,9 +124,11 @@ export default function App() {
         currentUser={currentUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenNewRequestModal={() => setIsNewRequestModalOpen(true)}
+        onOpenNewRequestModal={() => openNewRequestModal()}
         onSelectRequest={handleSelectRequest}
         onOpenPitchDeck={!isStaff ? () => setIsPitchDeckOpen(true) : undefined}
+        onOpenProfileModal={() => setIsProfileModalOpen(true)}
+        onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -136,26 +151,40 @@ export default function App() {
         ) : (
           /* Tab Views */
           <>
+            {/* Shared Social & Announcements Views */}
+            {activeTab === 'forum' && (
+              <ResidenceForum onOpenOwnProfileModal={() => setIsProfileModalOpen(true)} />
+            )}
+            {activeTab === 'people' && (
+              <PeopleDirectory onOpenOwnProfileModal={() => setIsProfileModalOpen(true)} />
+            )}
+
             {/* Student Views */}
             {!isStaff && (
               <>
                 {activeTab === 'student_requests' && (
                   <StudentDashboard
-                    onOpenNewRequestModal={() => setIsNewRequestModalOpen(true)}
+                    onOpenNewRequestModal={openNewRequestModal}
                     onSelectRequest={handleSelectRequest}
+                    onOpenProfileModal={() => setIsProfileModalOpen(true)}
+                    onOpenResidenceGuide={() => setActiveTab('residence_info')}
+                    onOpenForum={() => setActiveTab('forum')}
+                    onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
                   />
                 )}
-                {activeTab === 'residence_info' && <ResidenceInfo />}
+                {activeTab === 'residence_info' && (
+                  <ResidenceInfo onOpenNewRequestModal={openNewRequestModal} />
+                )}
               </>
             )}
 
-            {/* Staff Views */}
+            {/* Staff & Manager Views */}
             {isStaff && (
               <>
                 {activeTab === 'staff_requests' && (
                   <StaffRequestTable
                     onSelectRequest={handleSelectRequest}
-                    onOpenNewRequestModal={() => setIsNewRequestModalOpen(true)}
+                    onOpenNewRequestModal={() => openNewRequestModal()}
                   />
                 )}
                 {activeTab === 'analytics' && (
@@ -171,10 +200,27 @@ export default function App() {
       {/* Guided Request Modal */}
       <NewRequestModal
         isOpen={isNewRequestModalOpen}
-        onClose={() => setIsNewRequestModalOpen(false)}
+        onClose={() => {
+          setIsNewRequestModalOpen(false);
+          setNewRequestPreset(null);
+        }}
+        initialTemplate={newRequestPreset}
         onRequestCreated={(newId) => {
           handleSelectRequest(newId);
         }}
+      />
+
+      {/* Profile & Room Editor Modal */}
+      <StudentProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+      />
+
+      {/* Real-Time Gemini Live Voice Conversation Modal */}
+      <VoiceConversationModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
       />
 
       {/* Real-time In-App Notification Toast */}
